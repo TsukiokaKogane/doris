@@ -30,6 +30,8 @@ import org.apache.doris.common.profile.ProfileManager.ProfileType;
 import org.apache.doris.common.util.DebugUtil;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.datasource.FileScanNode;
+import org.apache.doris.datasource.doris.RemoteDorisExternalTable;
+import org.apache.doris.datasource.doris.RemoteOlapTable;
 import org.apache.doris.datasource.hive.HMSExternalTable;
 import org.apache.doris.datasource.iceberg.IcebergExternalTable;
 import org.apache.doris.datasource.jdbc.JdbcExternalTable;
@@ -380,7 +382,9 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
             DataSink dataSink = planner.getFragments().get(0).getSink();
             // Transaction insert should reuse the label in the transaction.
             String label = this.labelName.orElse(
-                    ctx.isTxnModel() ? null : String.format("label_%x_%x", ctx.queryId().hi, ctx.queryId().lo));
+                    ctx.isTxnModel() ? null : String.format("label%s_%x_%x",
+                            (targetTableIf instanceof RemoteDorisExternalTable) ? "_remote_"
+                                    + Env.getCurrentEnv().getClusterId() : "", ctx.queryId().hi, ctx.queryId().lo));
 
             // check branch
             if (branchName.isPresent() && !(physicalSink instanceof PhysicalIcebergTableSink)) {
@@ -389,11 +393,16 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
 
             if (physicalSink instanceof PhysicalOlapTableSink) {
                 boolean emptyInsert = childIsEmptyRelation(physicalSink);
-                OlapTable olapTable = (OlapTable) targetTableIf;
+                OlapTable olapTable = targetTableIf instanceof RemoteDorisExternalTable
+                        ? ((RemoteDorisExternalTable) targetTableIf).getOlapTable()
+                        : (OlapTable) targetTableIf;
 
                 ExecutorFactory executorFactory;
                 // the insertCtx contains some variables to adjust SinkNode
                 if (ctx.isTxnModel()) {
+                    if (targetTableIf instanceof RemoteDorisExternalTable) {
+                        throw new AnalysisException("remote olap table do not support txn model");
+                    }
                     executorFactory = ExecutorFactory.from(
                             planner,
                             dataSink,
@@ -402,6 +411,9 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
                                     ctx, olapTable, label, planner, insertCtx, emptyInsert, jobId)
                     );
                 } else if (ctx.isGroupCommit()) {
+                    if (targetTableIf instanceof RemoteDorisExternalTable) {
+                        throw new AnalysisException("remote olap table do not support group commit");
+                    }
                     Backend groupCommitBackend = Env.getCurrentEnv()
                             .getGroupCommitManager()
                             .selectBackendForGroupCommit(targetTableIf.getId(), ctx);
@@ -420,12 +432,23 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
                     if (getLogicalQuery().containsType(InlineTable.class)) {
                         jobId = -1;
                     }
-                    executorFactory = ExecutorFactory.from(
-                            planner,
-                            dataSink,
-                            physicalSink,
-                            () -> new OlapInsertExecutor(ctx, olapTable, label, planner, insertCtx, emptyInsert, jobId)
-                    );
+                    if (targetTableIf instanceof RemoteDorisExternalTable) {
+                        executorFactory = ExecutorFactory.from(
+                                planner,
+                                dataSink,
+                                physicalSink,
+                                () -> new RemoteOlapInsertExecutor(
+                                        ctx, (RemoteOlapTable) olapTable, label, planner, insertCtx, emptyInsert, jobId)
+                        );
+                    } else {
+                        executorFactory = ExecutorFactory.from(
+                                planner,
+                                dataSink,
+                                physicalSink,
+                                () -> new OlapInsertExecutor(
+                                        ctx, olapTable, label, planner, insertCtx, emptyInsert, jobId)
+                        );
+                    }
                 }
 
                 return executorFactory.onCreate(executor -> {
@@ -535,7 +558,7 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
             } else {
                 // TODO: support other table types
                 throw new AnalysisException(
-                        "insert into command only support [olap, dictionary, hive, iceberg, jdbc] table");
+                        "insert into command only support [olap, remoteOlap, dictionary, hive, iceberg, jdbc] table");
             }
         } catch (Throwable t) {
             Throwables.propagateIfInstanceOf(t, RuntimeException.class);

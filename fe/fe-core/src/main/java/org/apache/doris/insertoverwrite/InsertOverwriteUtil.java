@@ -23,6 +23,7 @@ import org.apache.doris.catalog.OlapTable;
 import org.apache.doris.catalog.TableIf;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.util.PropertyAnalyzer;
+import org.apache.doris.datasource.doris.RemoteOlapTable;
 import org.apache.doris.info.PartitionNamesInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.AddPartitionLikeOp;
 import org.apache.doris.nereids.trees.plans.commands.info.DropPartitionOp;
@@ -50,12 +51,18 @@ public class InsertOverwriteUtil {
      */
     public static void addTempPartitions(TableIf tableIf, List<String> partitionNames,
                                          List<String> tempPartitionNames) throws DdlException {
-        if (tableIf instanceof OlapTable) {
+        if (tableIf instanceof RemoteOlapTable) {
+            ((RemoteOlapTable) tableIf).getCatalog().getFeServiceClient().addPartitions(
+                    ((RemoteOlapTable) tableIf).getDBName(), tableIf.getName(), partitionNames,
+                    tempPartitionNames, true);
+        } else if (tableIf instanceof OlapTable) {
             for (int i = 0; i < partitionNames.size(); i++) {
                 Env.getCurrentEnv().addPartitionLike((Database) tableIf.getDatabase(), tableIf.getName(),
                     new AddPartitionLikeOp(tempPartitionNames.get(i), partitionNames.get(i), true));
                 LOG.info("successfully add temp partition [{}] for [{}]", tempPartitionNames.get(i), tableIf.getName());
             }
+        } else {
+            throw new DdlException("unsupported table type: " + tableIf.getType());
         }
     }
 
@@ -74,7 +81,11 @@ public class InsertOverwriteUtil {
 
     public static void replacePartition(TableIf olapTable, List<String> partitionNames,
             List<String> tempPartitionNames, boolean isForce) throws DdlException {
-        if (olapTable instanceof OlapTable) {
+        if (olapTable instanceof RemoteOlapTable) {
+            ((RemoteOlapTable) olapTable).getCatalog().getFeServiceClient().replacePartitions(
+                    ((RemoteOlapTable) olapTable).getDBName(), olapTable.getName(), partitionNames,
+                    tempPartitionNames, isForce);
+        } else if (olapTable instanceof OlapTable) {
             try {
                 if (!olapTable.writeLockIfExist()) {
                     return;
@@ -93,6 +104,8 @@ public class InsertOverwriteUtil {
             } finally {
                 olapTable.writeUnlock();
             }
+        } else {
+            throw new DdlException("unsupported table type: " + olapTable.getType());
         }
     }
 
@@ -129,25 +142,33 @@ public class InsertOverwriteUtil {
      * @param tempPartitionNames
      * @return
      */
-    public static boolean dropPartitions(OlapTable olapTable, List<String> tempPartitionNames) {
-        try {
-            if (!olapTable.writeLockIfExist()) {
-                return true;
-            }
-            for (String partitionName : tempPartitionNames) {
-                if (olapTable.getPartition(partitionName, true) == null) {
-                    continue;
+    public static boolean dropPartitions(TableIf olapTable, List<String> tempPartitionNames) {
+        if (olapTable instanceof RemoteOlapTable) {
+            RemoteOlapTable remoteTable = (RemoteOlapTable) olapTable;
+            return remoteTable.getCatalog().getFeServiceClient().dropPartitions(
+                    remoteTable.getDBName(), olapTable.getName(), tempPartitionNames, true, true);
+        } else if (olapTable instanceof OlapTable) {
+            try {
+                if (!olapTable.writeLockIfExist()) {
+                    return true;
                 }
-                Env.getCurrentEnv().dropPartition(
-                        (Database) olapTable.getDatabase(), olapTable,
-                        new DropPartitionOp(true, partitionName, true, true));
-                LOG.info("successfully drop temp partition [{}] for [{}]", partitionName, olapTable.getName());
+                for (String partitionName : tempPartitionNames) {
+                    if (((OlapTable) olapTable).getPartition(partitionName, true) == null) {
+                        continue;
+                    }
+                    Env.getCurrentEnv().dropPartition(
+                            (Database) olapTable.getDatabase(), (OlapTable) olapTable,
+                            new DropPartitionOp(true, partitionName, true, true));
+                    LOG.info("successfully drop temp partition [{}] for [{}]", partitionName, olapTable.getName());
+                }
+            } catch (DdlException e) {
+                LOG.info("drop partition failed for [{}]", olapTable.getName(), e);
+                return false;
+            } finally {
+                olapTable.writeUnlock();
             }
-        } catch (DdlException e) {
-            LOG.info("drop partition failed for [{}]", olapTable.getName(), e);
-            return false;
-        } finally {
-            olapTable.writeUnlock();
+        }  else {
+            throw new RuntimeException("unsupported table type: " + olapTable.getType());
         }
         return true;
     }

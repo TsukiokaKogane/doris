@@ -135,9 +135,10 @@ public class OlapInsertExecutor extends AbstractInsertExecutor {
         try {
             // TODO refactor this to avoid call legacy planner's function
             long timeout = getTimeout();
+            long dbId = database.getId();
             // TODO: For Insert Into with S3/HDFS TVF, need to get load_to_single_tablet from TVF properties
             // Currently hardcoded to false, which bypasses the check in OlapTableSink.init()
-            olapTableSink.init(ctx.queryId(), txnId, database.getId(),
+            olapTableSink.init(ctx.queryId(), txnId, dbId,
                     timeout,
                     ctx.getSessionVariable().getSendBatchParallelism(),
                     false,
@@ -194,6 +195,19 @@ public class OlapInsertExecutor extends AbstractInsertExecutor {
 
     protected void addTableIndexes(TransactionState state) {
         state.addTableIndexes((OlapTable) table);
+    }
+
+    /**
+     * Abort current transaction when insert fails.
+     * Subclasses can override this method to customize abort behavior.
+     */
+    protected void abortTransactionOnFail() {
+        try {
+            Env.getCurrentGlobalTransactionMgr().abortTransaction(database.getId(), txnId, errMsg);
+        } catch (UserException e) {
+            LOG.warn("abort local transaction failed, dbId={}, txnId={}, reason={}",
+                    database.getId(), txnId, e.getMessage(), e);
+        }
     }
 
     @Override
@@ -279,8 +293,7 @@ public class OlapInsertExecutor extends AbstractInsertExecutor {
         LOG.warn("insert [{}] with query id {} failed", labelName, queryId, t);
         if (txnId != INVALID_TXN_ID) {
             try {
-                Env.getCurrentGlobalTransactionMgr().abortTransaction(
-                        database.getId(), txnId, errMsg);
+                abortTransactionOnFail();
             } catch (Exception abortTxnException) {
                 // just print a log if abort txn failed. This failure do not need to pass to user.
                 // user only concern abort how txn failed.

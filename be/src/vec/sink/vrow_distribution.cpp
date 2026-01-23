@@ -128,7 +128,9 @@ Status VRowDistribution::automatic_create_partition() {
         if (cluster_info == nullptr) {
             return Status::InternalError("cluster_info is null");
         }
-        TNetworkAddress master_addr = cluster_info->master_fe_addr;
+        TNetworkAddress master_addr = _vpartition->get_master_address() == nullptr
+                                          ? ExecEnv::GetInstance()->cluster_info()->master_fe_addr
+                                          : *_vpartition->get_master_address();
         int time_out = _state->execution_timeout() * 1000;
         RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
                 master_addr.hostname, master_addr.port,
@@ -224,7 +226,9 @@ Status VRowDistribution::_replace_overwriting_partition() {
         if (cluster_info == nullptr) {
             return Status::InternalError("cluster_info is null");
         }
-        TNetworkAddress master_addr = cluster_info->master_fe_addr;
+        TNetworkAddress master_addr = _vpartition->get_master_address() == nullptr
+                                          ? ExecEnv::GetInstance()->cluster_info()->master_fe_addr
+                                          : *_vpartition->get_master_address();
         int time_out = _state->execution_timeout() * 1000;
         RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
                 master_addr.hostname, master_addr.port,

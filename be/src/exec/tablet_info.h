@@ -291,7 +291,7 @@ public:
     bool is_auto_detect_overwrite() const { return _is_auto_detect_overwrite; }
     int64_t get_overwrite_group_id() const { return _overwrite_group_id; }
 
-    TNetworkAddress* get_master_address() const {return _master_address; }
+    TNetworkAddress* get_master_address() const { return _master_address; }
 
     std::vector<uint16_t> get_partition_keys() const { return _partition_slot_locs; }
 

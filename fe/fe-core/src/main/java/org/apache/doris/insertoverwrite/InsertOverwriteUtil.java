@@ -61,8 +61,6 @@ public class InsertOverwriteUtil {
                     new AddPartitionLikeOp(tempPartitionNames.get(i), partitionNames.get(i), true));
                 LOG.info("successfully add temp partition [{}] for [{}]", tempPartitionNames.get(i), tableIf.getName());
             }
-        } else {
-            throw new DdlException("unsupported table type: " + tableIf.getType());
         }
     }
 
@@ -104,8 +102,6 @@ public class InsertOverwriteUtil {
             } finally {
                 olapTable.writeUnlock();
             }
-        } else {
-            throw new DdlException("unsupported table type: " + olapTable.getType());
         }
     }
 
@@ -167,8 +163,6 @@ public class InsertOverwriteUtil {
             } finally {
                 olapTable.writeUnlock();
             }
-        }  else {
-            throw new RuntimeException("unsupported table type: " + olapTable.getType());
         }
         return true;
     }

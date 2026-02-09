@@ -2447,7 +2447,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                             olapTable, replacePartitionOp);
         } catch (DdlException e) {
             LOG.warn("replace partition failed for [{}], err={}",
-                    request.getTbl(), Util.getRootCauseStack(e), e);
+                    request.getTbl(), Util.getRootCauseMessage(e), e);
             throw e;
         } finally {
             olapTable.writeUnlock();
@@ -3136,7 +3136,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             result.setStatus(MasterCatalogExecutor.STATUS_OK);
         } catch (Throwable t) {
             LOG.warn("init catalog failed. catalog: {}", catalog.getName(), t);
-            result.setStatus(Util.getRootCauseStack(t));
+            result.setStatus(Util.getRootCauseMessage(t));
         }
         return result;
     }
@@ -3161,7 +3161,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             result.setStatus(MasterCatalogExecutor.STATUS_OK);
         } catch (Throwable t) {
             LOG.warn("init database failed. catalog.database: {}", catalog.getName(), db.getFullName(), t);
-            result.setStatus(Util.getRootCauseStack(t));
+            result.setStatus(Util.getRootCauseMessage(t));
         }
         return result;
     }

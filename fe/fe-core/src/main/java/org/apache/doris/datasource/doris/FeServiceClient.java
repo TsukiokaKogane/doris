@@ -412,7 +412,7 @@ public class FeServiceClient {
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("get master address for catalog {} failed, cost={}ms", name, costMs, e);
-            throw new RuntimeException(Util.getRootCauseStack(e), e);
+            throw new RuntimeException(Util.getRootCauseMessage(e), e);
         }
         if (result.getStatus().getStatusCode() != TStatusCode.OK) {
             LOG.warn("get master address for catalog {} failed, err={}", name,
@@ -445,7 +445,7 @@ public class FeServiceClient {
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("add partitions to catalog {} failed, cost={}ms", name, costMs, e);
-            throw new DdlException(Util.getRootCauseStack(e), e);
+            throw new DdlException(Util.getRootCauseMessage(e), e);
         }
         if (result.getStatus().getStatusCode() != TStatusCode.OK) {
             LOG.warn("add partitions to catalog {} failed, err={}", name,
@@ -511,7 +511,7 @@ public class FeServiceClient {
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("replace partitions to catalog {} failed, cost={}ms", name, costMs, e);
-            throw new DdlException(Util.getRootCauseStack(e), e);
+            throw new DdlException(Util.getRootCauseMessage(e), e);
         }
         if (result.getStatus().getStatusCode() != TStatusCode.OK) {
             LOG.warn("replace partitions to catalog {} failed, db={}, tbl={}, err={}", name, dbName, tableName,
@@ -626,7 +626,7 @@ public class FeServiceClient {
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task group success to catalog {} failed, cost={}ms", name, costMs, e);
-            throw new DdlException(Util.getRootCauseStack(e), e);
+            throw new DdlException(Util.getRootCauseMessage(e), e);
         }
         if (result.getStatus().getStatusCode() != TStatusCode.OK) {
             LOG.warn("task group success to catalog {} failed, groupId={}, err={}", name,
@@ -796,7 +796,7 @@ public class FeServiceClient {
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("record finished load job to catalog {} failed, cost={}ms", name, costMs, e);
-            throw new MetaNotFoundException(Util.getRootCauseStack(e), e);
+            throw new MetaNotFoundException(Util.getRootCauseMessage(e), e);
         }
         if (result.getStatus().getStatusCode() != TStatusCode.OK) {
             LOG.warn("record finished load job to catalog {} failed, err={}", name,

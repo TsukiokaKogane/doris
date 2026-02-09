@@ -124,7 +124,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
         } catch (Exception e) {
             LOG.info("begin remote txn failed, catalog={}, db={}, table={}, label={}, errMsg={}",
                     database.getCatalog().getName(), remoteDbName, remoteTableName, labelName, e.getMessage());
-            throw new AnalysisException(Util.getRootCauseStack(e), e);
+            throw new AnalysisException(Util.getRootCauseMessage(e), e);
         }
     }
 
@@ -230,7 +230,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
                                     remoteCatalog.getName(), database.getId(), txnId, txnStatus, e.getMessage());
             throw e;
         } catch (Exception e) {
-            throw new UserException(Util.getRootCauseStack(e), e);
+            throw new UserException(Util.getRootCauseMessage(e), e);
         }
     }
 
@@ -261,7 +261,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
         } catch (Exception e) {
             LOG.warn("abort remote transaction failed unexpectedly. catalog={}, txnId={}, err={}",
                     remoteCatalog.getName(), txnId, e.getMessage(), e);
-            throw new Exception(Util.getRootCauseStack(e), e);
+            throw new Exception(Util.getRootCauseMessage(e), e);
         }
     }
 

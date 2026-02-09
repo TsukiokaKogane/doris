@@ -164,15 +164,15 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
 
 
     qt_sql """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t` order by id
     """
 
     qt_sql """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t2` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t2` order by id
     """
 
     qt_sql """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t3` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t3` order by id
     """
 
     // test select after insert also get correct data, it seems we can newly partition version
@@ -180,7 +180,7 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         INSERT INTO `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t3` values('2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111', '2025-05-19 01:00:00.111111');
     """
     qt_query_after_insert """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t3` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t3` order by id
     """
 
     // test insert command
@@ -215,25 +215,25 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
     """
     // test insert into
     explain {
-        sql("insert into `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`")
+        sql("insert into `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`")
         contains("VOlapScanNode")
     }
     sql """
-        insert into `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`
+        insert into `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`
     """
     qt_after_insert_cmd """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` order by id
     """
     // test insert overwrite
     explain {
-        sql("insert OVERWRITE table `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`")
+        sql("insert OVERWRITE table `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`")
         contains("VOlapScanNode")
     }
     sql """
-        insert OVERWRITE table `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`
+        insert OVERWRITE table `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_select_t`
     """
     qt_after_insert_overwrite_cmd """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` order by id
+        select * from `${catalog_name}`.`${db_name}`.`test_remote_doris_all_types_insert` order by id
     """
 
     // test join operation
@@ -276,11 +276,11 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         ('2023-01-01',3,300,'error3',3000,'2023-01-01 00:00:00');
     """
     qt_join """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`left_inner_table` a
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_table` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table` b on a.`log_type` = b.`log_type` order by a.`log_type`
     """
     qt_join_predicate """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`left_inner_table` a
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_table` a
         join `${catalog_name}`.`${db_name}`.`right_remote_table` b on a.`log_type` = b.`log_type` and b.op_id=2000 order by a.`log_type`
     """
 
@@ -337,12 +337,12 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
     """
 
     qt_join_partition """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`left_inner_table_partition` a
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_table_partition` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table_partition` b on a.`log_type` = b.`log_type` and a.`log_time` = b.`log_time` order by a.`log_type`
     """
 
     qt_join_partition_predicate """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`left_inner_table_partition` a
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_table_partition` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table_partition` b on a.`log_type` = b.`log_type` and a.`log_time` = b.`log_time` and b.log_time='2023-01-02' order by a.`log_type`
     """
 
@@ -366,11 +366,10 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         (3,'{"id":3,"message":"doris"}','{"id":3,"message":"doris","tags":["tag5","tag6"]}');
     """
     qt_json_variant """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ id, c_json, c_variant from `${catalog_name}`.`${db_name}`.`remote_json_variant` order by id
+        select id, c_json, c_variant from `${catalog_name}`.`${db_name}`.`remote_json_variant` order by id
     """
     qt_json_variant_function """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ id,
-        JSON_EXTRACT_INT(c_json, '\$.id') as json_id, cast(c_variant['message'] as string) as v_msg from `${catalog_name}`.`${db_name}`.`remote_json_variant` order by id
+        select id,  JSON_EXTRACT_INT(c_json, '\$.id') as json_id, cast(c_variant['message'] as string) as v_msg from `${catalog_name}`.`${db_name}`.`remote_json_variant` order by id
     """
 
     // test unique table
@@ -414,7 +413,7 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         ('2023-01-03',3,300,'error3',3000,'2023-01-03 00:00:00');
     """
     qt_join_unique """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ * from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table_unique` b on a.`log_type` = b.`log_type` and b.op_id=2000 order by a.`log_type`
     """
 
@@ -442,11 +441,11 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         (4,400);
      """
      qt_aggregate """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ log_type, sum(count) as count from `${catalog_name}`.`${db_name}`.`right_remote_table_aggregate` group by log_type order by log_type
+        select log_type, sum(count) as count from `${catalog_name}`.`${db_name}`.`right_remote_table_aggregate` group by log_type order by log_type
     """
 
     qt_join_aggregate """
-        select /*+ SET_VAR(enable_nereids_distribute_planner=true, enable_sql_cache=true) */ b.`log_type`, sum(b.`count`) as count from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
+        select b.`log_type`, sum(b.`count`) as count from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table_aggregate` b on a.`log_type` = b.`log_type` group by b.`log_type` order by b.`log_type`
     """
 

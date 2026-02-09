@@ -249,6 +249,8 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
                         remoteCatalog.getName(), txnId, result.getStatus().getErrorMsgs().get(0));
                 throw new UserException(result.getStatus().getErrorMsgs().get(0));
             }
+        } catch (UserException e) {
+            throw e;
         } catch (Exception e) {
             LOG.warn("abort remote transaction failed unexpectedly. catalog={}, txnId={}, err={}",
                     remoteCatalog.getName(), txnId, e.getMessage(), e);

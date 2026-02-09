@@ -2137,7 +2137,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         if (db == null) {
             throw new MetaNotFoundException("unknown database, database=" + fullDbName);
         }
-
+        if (StringUtils.isEmpty(request.getTbl())) {
+            throw new AnalysisException("table name is empty");
+        }
         TableIf tableIf = db.getTableOrMetaException(request.getTbl(), TableType.OLAP);
         OlapTable table = (OlapTable) tableIf;
 
@@ -2180,7 +2182,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
-        }  catch (UserException e) {
+        } catch (UserException e) {
             status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
             status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
@@ -2196,7 +2198,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         if (db == null) {
             throw new MetaNotFoundException("unknown database, database=" + dbName);
         }
-
+        if (StringUtils.isEmpty(request.getTbl())) {
+            throw new AnalysisException("table name is empty");
+        }
         TableIf tableIf = db.getTableOrMetaException(request.getTbl(), TableType.OLAP);
         OlapTable table = (OlapTable) tableIf;
         return Env.getCurrentGlobalTransactionMgr().commitAndPublishTransaction(
@@ -2231,6 +2235,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                 return result;
             }
             abortRemoteTxnImpl(request);
+        } catch (AuthenticationException e) {
+            status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
+            status.addToErrorMsgs(e.getMessage());
         } catch (UserException e) {
             status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
             status.addToErrorMsgs(e.getMessage());
@@ -2318,7 +2325,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             status.setStatusCode(TStatusCode.ABORTED);
             status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+            LOG.warn("catch unknown exception when modify partitions", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }
@@ -2331,6 +2338,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         Database db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
             throw new DdlException("Database not found: " + dbName);
+        }
+        if (StringUtils.isEmpty(request.getTbl())) {
+            throw new DdlException("Table name is empty");
         }
         OlapTable olapTable = (OlapTable) db.getTableNullable(request.getTbl());
         if (olapTable == null) {
@@ -2396,8 +2406,11 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
+        } catch (DdlException e) {
+            status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
+            status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+            LOG.warn("catch unknown exception when replace partitions", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }
@@ -2409,6 +2422,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         Database db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
             throw new DdlException("Database not found: " + dbName);
+        }
+        if (StringUtils.isEmpty(request.getTbl())) {
+            throw new DdlException("Table name is empty");
         }
         OlapTable olapTable = (OlapTable) db.getTableNullable(request.getTbl());
         if (olapTable == null) {
@@ -2430,7 +2446,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                     .replaceTempPartition((Database) olapTable.getDatabase(),
                             olapTable, replacePartitionOp);
         } catch (DdlException e) {
-            LOG.info("replace partition failed for [{}]", request.getTbl(), e);
+            LOG.warn("replace partition failed for [{}], err={}",
+                    request.getTbl(), Util.getRootCauseStack(e), e);
+            throw e;
         } finally {
             olapTable.writeUnlock();
         }
@@ -2472,8 +2490,11 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
+        } catch (DdlException e) {
+            status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
+            status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+            LOG.warn("catch unknown exception when register insert overwrite task", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }
@@ -2484,6 +2505,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
             throw new DdlException("Database not found: " + dbName);
+        }
+        if (StringUtils.isEmpty(tblName)) {
+            throw new DdlException("Table name is empty");
         }
         TableIf tbl = db.getTableNullable(tblName);
         if (tbl == null) {
@@ -2496,6 +2520,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
             throw new DdlException("Database not found: " + dbName);
+        }
+        if (StringUtils.isEmpty(tableName)) {
+            throw new DdlException("Table name is empty");
         }
         TableIf tbl = db.getTableNullable(tableName);
         if (tbl == null) {
@@ -2550,22 +2577,28 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
+        } catch (DdlException e) {
+            status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
+            status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+            LOG.warn("catch unknown exception when insert overwrite task action", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }
         return result;
     }
 
-    private void taskGroupSuccessImpl(String fullName, String name, long groupId) throws Exception {
-        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(fullName);
+    private void taskGroupSuccessImpl(String dbName, String tblName, long groupId) throws Exception {
+        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
-            throw new DdlException("Database not found: " + fullName);
+            throw new DdlException("Database not found: " + dbName);
         }
-        TableIf tbl = db.getTableNullable(name);
+        if (StringUtils.isEmpty(tblName)) {
+            throw new DdlException("Table name is empty");
+        }
+        TableIf tbl = db.getTableNullable(tblName);
         if (tbl == null) {
-            throw new DdlException("Table not found: " + name);
+            throw new DdlException("Table not found: " + tblName);
         }
         Env.getCurrentEnv().getInsertOverwriteManager().taskGroupSuccess(groupId, (OlapTable) tbl);
     }
@@ -2614,35 +2647,43 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
-        } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+        } catch (DdlException e) {
+            status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
+            status.addToErrorMsgs(e.getMessage());
+        }  catch (Throwable e) {
+            LOG.warn("unknown exception when add or drop insert overwrite record", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }
         return result;
     }
 
-
-    private void recordRunningTableOrExceptionImpl(String fullName, String name) throws Exception {
-        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(fullName);
+    private void recordRunningTableOrExceptionImpl(String dbName, String tblName) throws Exception {
+        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
-            throw new DdlException("Database not found: " + fullName);
+            throw new DdlException("Database not found: " + dbName);
         }
-        TableIf tbl = db.getTableNullable(name);
+        if (StringUtils.isEmpty(tblName)) {
+            throw new DdlException("Table name is empty");
+        }
+        TableIf tbl = db.getTableNullable(tblName);
         if (tbl == null) {
-            throw new DdlException("Table not found: " + name);
+            throw new DdlException("Table not found: " + tblName);
         }
         Env.getCurrentEnv().getInsertOverwriteManager().recordRunningTableOrException(db, tbl);
     }
 
-    private void dropRunningRecordImpl(String fullName, String name) throws Exception {
-        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(fullName);
+    private void dropRunningRecordImpl(String dbName, String tblName) throws Exception {
+        DatabaseIf db = Env.getCurrentInternalCatalog().getDbNullable(dbName);
         if (db == null) {
-            throw new DdlException("Database not found: " + fullName);
+            throw new DdlException("Database not found: " + dbName);
         }
-        TableIf tbl = db.getTableNullable(name);
+        if (StringUtils.isEmpty(tblName)) {
+            throw new DdlException("Table name is empty");
+        }
+        TableIf tbl = db.getTableNullable(tblName);
         if (tbl == null) {
-            throw new DdlException("Table not found: " + name);
+            throw new DdlException("Table not found: " + tblName);
         }
         Env.getCurrentEnv().getInsertOverwriteManager().dropRunningRecord(db, tbl);
     }
@@ -2678,8 +2719,11 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         } catch (AuthenticationException e) {
             status.setStatusCode(TStatusCode.NOT_AUTHORIZED);
             status.addToErrorMsgs(e.getMessage());
+        } catch (DdlException e) {
+            status.setStatusCode(TStatusCode.ANALYSIS_ERROR);
+            status.addToErrorMsgs(e.getMessage());
         } catch (Throwable e) {
-            LOG.warn("catch unknown exception when check master address", e);
+            LOG.warn("catch unknown exception when record finished load job", e);
             status.setStatusCode(TStatusCode.INTERNAL_ERROR);
             status.addToErrorMsgs(Strings.nullToEmpty(e.getMessage()));
         }

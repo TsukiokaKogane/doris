@@ -26,6 +26,7 @@ import org.apache.doris.common.MetaNotFoundException;
 import org.apache.doris.common.QuotaExceedException;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.util.DebugUtil;
+import org.apache.doris.common.util.Util;
 import org.apache.doris.datasource.doris.FeServiceClient;
 import org.apache.doris.datasource.doris.RemoteDorisExternalCatalog;
 import org.apache.doris.datasource.doris.RemoteOlapTable;
@@ -66,8 +67,7 @@ import java.util.List;
  * Local insert implementation remains in {@link OlapInsertExecutor}.
  *
  * This executor is responsible for wiring Doris Catalog remote transaction
- * lifecycle (begin / commit / abort) and passing remote dbId / txnId
- * into the sink, while reusing the generic insert execution pipeline
+ * lifecycle (begin / commit / abort) while reusing the generic insert execution pipeline
  * defined in {@link AbstractInsertExecutor}.
  */
 public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
@@ -89,6 +89,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
         String remoteTableName = table.getName();
 
         TBeginRemoteTxnRequest request = new TBeginRemoteTxnRequest();
+        request.setCatalog(database.getCatalog().getName());
         request.setDb(remoteDbName);
         request.setTbl(remoteTableName);
         request.setLabel(labelName);
@@ -119,9 +120,11 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
             }
             this.txnId = result.getTxnId();
             LOG.info("begin remote txn success, catalog={}, db={}, table={}, label={}, txnId={}",
-                    table.getName(), remoteDbName, remoteTableName, labelName, txnId);
+                    database.getCatalog().getName(), remoteDbName, remoteTableName, labelName, txnId);
         } catch (Exception e) {
-            throw new AnalysisException("begin remote transaction failed. " + e.getMessage(), e);
+            LOG.info("begin remote txn failed, catalog={}, db={}, table={}, label={}, errMsg={}",
+                    database.getCatalog().getName(), remoteDbName, remoteTableName, labelName, e.getMessage());
+            throw new AnalysisException(Util.getRootCauseStack(e), e);
         }
     }
 
@@ -199,6 +202,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
 
         TCommitRemoteTxnRequest request = new TCommitRemoteTxnRequest();
         request.setTxnId(txnId);
+        request.setCatalog(database.getCatalog().getName());
         request.setDb(database.getFullName());
         request.setTbl(table.getName());
         request.setCommitInfos(coordinator.getCommitInfos());
@@ -222,9 +226,11 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
                 }
             }
         } catch (UserException e) {
+            LOG.warn("commit remote txn failed, catalog={}, dbId={}, txnId={}, status={}, err={}",
+                                    remoteCatalog.getName(), database.getId(), txnId, txnStatus, e.getMessage());
             throw e;
         } catch (Exception e) {
-            throw new UserException("commit remote transaction failed unexpectedly. " + e.getMessage(), e);
+            throw new UserException(Util.getRootCauseStack(e), e);
         }
     }
 
@@ -233,11 +239,12 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
      * This method is best-effort and will not throw exception to user.
      */
     @Override
-    protected void abortTransactionOnFail() throws UserException {
+    protected void abortTransactionOnFail() throws Exception {
         RemoteDorisExternalCatalog remoteCatalog = ((RemoteOlapTable) table).getCatalog();
         FeServiceClient client = remoteCatalog.getFeServiceClient();
         TAbortRemoteTxnRequest request = new TAbortRemoteTxnRequest();
         request.setTxnId(txnId);
+        request.setCatalog(database.getCatalog().getName());
         request.setDb(database.getFullName());
         try {
             TAbortRemoteTxnResult result = client.abortRemoteTxn(request);
@@ -254,7 +261,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
         } catch (Exception e) {
             LOG.warn("abort remote transaction failed unexpectedly. catalog={}, txnId={}, err={}",
                     remoteCatalog.getName(), txnId, e.getMessage(), e);
-            throw new UserException("abort remote transaction failed unexpectedly. " + e.getMessage(), e);
+            throw new Exception(Util.getRootCauseStack(e), e);
         }
     }
 
@@ -299,8 +306,8 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
             // Do not register job if job id is -1.
             if (!Config.enable_nereids_load && jobId != -1) {
                 ((RemoteOlapTable) table).getCatalog().getFeServiceClient().recordFinishedLoadJob(
-                        labelName, txnId, database.getFullName(), table.getName(), createTime, errMsg,
-                        coordinator.getTrackingUrl(), coordinator.getFirstErrorMsg(), jobId);
+                        labelName, txnId, database.getCatalog().getName(), database.getFullName(), table.getName(),
+                        createTime, errMsg, coordinator.getTrackingUrl(), coordinator.getFirstErrorMsg(), jobId);
             }
         } catch (MetaNotFoundException e) {
             LOG.warn("Record info of insert load with error {}", e.getMessage(), e);

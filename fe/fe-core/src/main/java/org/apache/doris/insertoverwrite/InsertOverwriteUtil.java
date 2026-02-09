@@ -23,6 +23,7 @@ import org.apache.doris.catalog.OlapTable;
 import org.apache.doris.catalog.TableIf;
 import org.apache.doris.common.DdlException;
 import org.apache.doris.common.util.PropertyAnalyzer;
+import org.apache.doris.datasource.InternalCatalog;
 import org.apache.doris.datasource.doris.RemoteOlapTable;
 import org.apache.doris.info.PartitionNamesInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.AddPartitionLikeOp;
@@ -53,8 +54,8 @@ public class InsertOverwriteUtil {
                                          List<String> tempPartitionNames) throws DdlException {
         if (tableIf instanceof RemoteOlapTable) {
             ((RemoteOlapTable) tableIf).getCatalog().getFeServiceClient().addPartitions(
-                    ((RemoteOlapTable) tableIf).getDBName(), tableIf.getName(), partitionNames,
-                    tempPartitionNames, true);
+                    InternalCatalog.INTERNAL_CATALOG_NAME, ((RemoteOlapTable) tableIf).getDBName(),
+                    tableIf.getName(), partitionNames, tempPartitionNames, true);
         } else if (tableIf instanceof OlapTable) {
             for (int i = 0; i < partitionNames.size(); i++) {
                 Env.getCurrentEnv().addPartitionLike((Database) tableIf.getDatabase(), tableIf.getName(),
@@ -81,8 +82,8 @@ public class InsertOverwriteUtil {
             List<String> tempPartitionNames, boolean isForce) throws DdlException {
         if (olapTable instanceof RemoteOlapTable) {
             ((RemoteOlapTable) olapTable).getCatalog().getFeServiceClient().replacePartitions(
-                    ((RemoteOlapTable) olapTable).getDBName(), olapTable.getName(), partitionNames,
-                    tempPartitionNames, isForce);
+                    InternalCatalog.INTERNAL_CATALOG_NAME, ((RemoteOlapTable) olapTable).getDBName(),
+                    olapTable.getName(), partitionNames, tempPartitionNames, isForce);
         } else if (olapTable instanceof OlapTable) {
             try {
                 if (!olapTable.writeLockIfExist()) {
@@ -141,7 +142,7 @@ public class InsertOverwriteUtil {
     public static boolean dropPartitions(TableIf olapTable, List<String> tempPartitionNames) {
         if (olapTable instanceof RemoteOlapTable) {
             RemoteOlapTable remoteTable = (RemoteOlapTable) olapTable;
-            return remoteTable.getCatalog().getFeServiceClient().dropPartitions(
+            return remoteTable.getCatalog().getFeServiceClient().dropPartitions(InternalCatalog.INTERNAL_CATALOG_NAME,
                     remoteTable.getDBName(), olapTable.getName(), tempPartitionNames, true, true);
         } else if (olapTable instanceof OlapTable) {
             try {

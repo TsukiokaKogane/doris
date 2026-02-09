@@ -1679,13 +1679,14 @@ struct TGetOlapTableMetaResult {
 // Remote transaction request and Result definitions for cross-cluster export.
 // These structs are used by beginRemoteTxn/commitRemoteTxn/abortRemoteTxn RPCs.
 struct TBeginRemoteTxnRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: required string label
-    7: required i64 timeout_ms
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional string label
+    8: optional i64 timeout_ms
 }
 
 struct TBeginRemoteTxnResult {
@@ -1695,84 +1696,89 @@ struct TBeginRemoteTxnResult {
 }
 
 struct TCommitRemoteTxnRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: required i64 txn_id
-    7: required list<Types.TTabletCommitInfo> commit_infos
-    8: required i64 insert_visible_timeout_ms
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional i64 txn_id
+    8: optional list<Types.TTabletCommitInfo> commit_infos
+    9: optional i64 insert_visible_timeout_ms
 }
 
 struct TCommitRemoteTxnResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional bool txn_status
     3: optional Types.TNetworkAddress master_address
 }
 
 struct TAbortRemoteTxnRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required i64 txn_id
-    6: optional string reason
-    7: optional Types.TNetworkAddress master_address
+    4: optional string catalog
+    5: optional string db
+    6: optional i64 txn_id
+    7: optional string reason
+    8: optional Types.TNetworkAddress master_address
 }
 
 struct TAbortRemoteTxnResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 
 struct TAddOrDropPartitionsRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: optional list<string> partition_names
-    7: optional list<string> temp_partition_names
-    8: bool is_drop
-    9: bool is_temp
-    10: bool is_force
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional list<string> partition_names
+    8: optional list<string> temp_partition_names
+    9: optional bool is_drop
+    10: optional bool is_temp
+    11: optional bool is_force
 }
 
 struct TAddOrDropPartitionsResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 
 struct TReplacePartitionsRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: optional list<string> partition_names
-    7: optional list<string> temp_partition_names
-    8: bool is_force
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional list<string> partition_names
+    8: optional list<string> temp_partition_names
+    9: optional bool is_force
 }
 
 struct TReplacePartitionsResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 
 struct TInsertOverwriteRegisterRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: optional i64 group_id
-    7: optional i64 task_id
-    8: optional list<string> partition_names
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional i64 group_id
+    8: optional i64 task_id
+    9: optional list<string> partition_names
 }
 
 struct TInsertOverwriteRegisterResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
     3: optional i64 task_id
     4: optional i64 group_id
@@ -1782,45 +1788,48 @@ struct TInsertOverwriteTaskRequest {
     1: required string user
     2: required string passwd
     3: optional string token
-    4: optional string db
-    5: optional string tbl
-    6: optional i64 group_id
-    7: optional i64 task_id
-    8: required bool is_success
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional i64 group_id
+    8: optional i64 task_id
+    9: required bool is_success
 }
 
 struct TInsertOverwriteTaskResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 
 struct TInsertOverwriteRecordRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: required bool is_add
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional bool is_add
 }
 
 struct TInsertOverwriteRecordResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 
 struct TRecordFinishedLoadJobRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
-    4: required string db
-    5: required string tbl
-    6: required string label
-    7: required i64 txn_id
-    8: required i64 create_ts
-    9: optional string fail_msg
-    10: optional string first_err_msg
-    11: optional string tracking_url
-    12: required i64 job_id
+    4: optional string catalog
+    5: optional string db
+    6: optional string tbl
+    7: optional string label
+    8: optional i64 txn_id
+    9: optional i64 create_ts
+    10: optional string fail_msg
+    11: optional string first_err_msg
+    12: optional string tracking_url
+    13: optional i64 job_id
 }
 struct TRecordFinishedLoadJobResult {
     1: optional Status.TStatus status
@@ -1828,13 +1837,13 @@ struct TRecordFinishedLoadJobResult {
 }
 
 struct TMasterAddressRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
 }
 
 struct TMasterAddressResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional Types.TNetworkAddress master_address
 }
 

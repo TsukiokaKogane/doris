@@ -21,6 +21,7 @@ import org.apache.doris.catalog.DatabaseIf;
 import org.apache.doris.catalog.OlapTable;
 import org.apache.doris.catalog.TableIf;
 import org.apache.doris.common.DdlException;
+import org.apache.doris.datasource.InternalCatalog;
 import org.apache.doris.datasource.doris.RemoteDorisExternalCatalog;
 
 import org.apache.logging.log4j.LogManager;
@@ -39,13 +40,15 @@ public class RemoteInsertOverwriteManager implements AbstractInsertOverwriteMana
     @Override
     public long registerTask(TableIf targetTable, List<String> tempPartitionNames) throws Exception {
         return  catalog.getFeServiceClient()
-                .registerTask(targetTable.getDatabase().getFullName(), targetTable.getName(), tempPartitionNames);
+                .registerTask(InternalCatalog.INTERNAL_CATALOG_NAME,
+                        targetTable.getDatabase().getFullName(), targetTable.getName(), tempPartitionNames);
     }
 
     @Override
     public long registerTaskGroup(TableIf targetTable) throws Exception {
         return catalog.getFeServiceClient()
-                .registerTaskGroup(targetTable.getDatabase().getFullName(), targetTable.getName());
+                .registerTaskGroup(InternalCatalog.INTERNAL_CATALOG_NAME,
+                        targetTable.getDatabase().getFullName(), targetTable.getName());
     }
 
     @Override
@@ -56,7 +59,8 @@ public class RemoteInsertOverwriteManager implements AbstractInsertOverwriteMana
     @Override
     public void taskGroupSuccess(long groupId, OlapTable targetTable) throws DdlException {
         catalog.getFeServiceClient()
-                .taskGroupSuccess(targetTable.getDatabase().getFullName(), targetTable.getName(), groupId);
+                .taskGroupSuccess(InternalCatalog.INTERNAL_CATALOG_NAME,
+                        targetTable.getDatabase().getFullName(), targetTable.getName(), groupId);
     }
 
     @Override
@@ -77,12 +81,13 @@ public class RemoteInsertOverwriteManager implements AbstractInsertOverwriteMana
     @Override
     public void recordRunningTableOrException(DatabaseIf db, TableIf table) throws Exception {
         catalog.getFeServiceClient()
-                .recordRunningTableOrException(db.getFullName(), table.getName());
+                .recordRunningTableOrException(InternalCatalog.INTERNAL_CATALOG_NAME, db.getFullName(),
+                        table.getName());
     }
 
     @Override
     public void dropRunningRecord(DatabaseIf db, TableIf targetTable) throws Exception {
         catalog.getFeServiceClient()
-                .dropRunningRecord(db.getFullName(), targetTable.getName());
+                .dropRunningRecord(InternalCatalog.INTERNAL_CATALOG_NAME, db.getFullName(), targetTable.getName());
     }
 }

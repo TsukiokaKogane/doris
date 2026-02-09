@@ -197,7 +197,7 @@ public class OlapInsertExecutor extends AbstractInsertExecutor {
         state.addTableIndexes((OlapTable) table);
     }
 
-    protected void abortTransactionOnFail() throws UserException {
+    protected void abortTransactionOnFail() throws Exception {
         Env.getCurrentGlobalTransactionMgr().abortTransaction(database.getId(), txnId, errMsg);
     }
 

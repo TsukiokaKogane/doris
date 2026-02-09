@@ -25,6 +25,7 @@ import org.apache.doris.common.FeConstants;
 import org.apache.doris.common.MetaNotFoundException;
 import org.apache.doris.common.UserException;
 import org.apache.doris.common.io.Text;
+import org.apache.doris.common.util.Util;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.system.Backend;
 import org.apache.doris.thrift.FrontendService;
@@ -215,6 +216,9 @@ public class FeServiceClient {
                 if (TResultAdapter.getStatus(result).getStatusCode() == TStatusCode.NOT_MASTER) {
                     if (TResultAdapter.getMasterAddress(result) != null) {
                         master = TResultAdapter.getMasterAddress(result);
+                    } else {
+                        index++;
+                        master = addresses.get((index) % addresses.size());
                     }
                 } else {
                     return result;
@@ -406,22 +410,25 @@ public class FeServiceClient {
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new RuntimeException(result.getStatus().getErrorMsgs().get(0));
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("get master address for catalog {} failed, cost={}ms", name, costMs, e);
-            throw new RuntimeException(e.getMessage());
+            throw new RuntimeException(Util.getRootCauseStack(e), e);
+        }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("get master address for catalog {} failed, err={}", name,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new RuntimeException(result.getStatus().getErrorMsgs().get(0));
         }
         return master;
     }
 
-    public void addPartitions(String dbName, String tableName, List<String> partitionNames,
+    public void addPartitions(String catalogName, String dbName, String tableName, List<String> partitionNames,
                               List<String> tempPartitionNames, boolean isTemp) throws DdlException {
         TAddOrDropPartitionsRequest request = new TAddOrDropPartitionsRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setPartitionNames(partitionNames);
@@ -436,21 +443,24 @@ public class FeServiceClient {
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("add partitions to catalog {} failed, cost={}ms", name, costMs, e);
             throw new DdlException(e.getMessage());
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("add partitions to catalog {} failed, err={}", name,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public boolean dropPartitions(String dbName, String tableName, List<String> partitionNames, boolean isTemp,
-                                  boolean isForce) {
+    public boolean dropPartitions(String catalogName, String dbName, String tableName, List<String> partitionNames,
+                                  boolean isTemp, boolean isForce) {
         TAddOrDropPartitionsRequest request = new TAddOrDropPartitionsRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setPartitionNames(partitionNames);
@@ -465,22 +475,26 @@ public class FeServiceClient {
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                return false;
-            }
+
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("drop partitions to catalog {} failed, cost={}ms", name, costMs, e);
             return false;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("drop partitions to catalog {} failed, db={}, tbl={}, err={}", name, dbName, tableName,
+                    result.getStatus().getErrorMsgs().get(0));
+            return false;
+        }
         return true;
     }
 
-    public void replacePartitions(String dbName, String tableName, List<String> partitionNames,
+    public void replacePartitions(String catalogName, String dbName, String tableName, List<String> partitionNames,
                                   List<String> tempPartitionNames, boolean isForce) throws DdlException {
         TReplacePartitionsRequest request = new TReplacePartitionsRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setPartitionNames(partitionNames);
@@ -494,20 +508,25 @@ public class FeServiceClient {
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
-            }
+
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("replace partitions to catalog {} failed, cost={}ms", name, costMs, e);
             throw new DdlException(e.getMessage());
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("replace partitions to catalog {} failed, db={}, tbl={}, err={}", name, dbName, tableName,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public long registerTask(String dbName, String tableName, List<String> tempPartitionNames) throws Exception {
+    public long registerTask(String catalogName, String dbName, String tableName,
+                             List<String> tempPartitionNames) throws Exception {
         TInsertOverwriteRegisterRequest request = new TInsertOverwriteRegisterRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setPartitionNames(tempPartitionNames);
@@ -519,40 +538,45 @@ public class FeServiceClient {
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
-            }
-            return result.getTaskId();
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("register insert overwrite task to catalog {} failed, db={}, tbl={}, err={}", name,
+                    dbName, tableName, result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
+        }
+        return result.getTaskId();
     }
 
-    public long registerTaskGroup(String dbName, String tableName) throws Exception {
+    public long registerTaskGroup(String catalogName, String dbName, String tableName) throws Exception {
         TInsertOverwriteRegisterRequest request = new TInsertOverwriteRegisterRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteRegisterResult result;
         try {
-            TInsertOverwriteRegisterResult result =
-                    masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
-                            "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
+                    "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
-            }
-            return result.getGroupId();
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("register insert overwrite task group to catalog {} failed, db={}, tbl={}, err={}", name,
+                    dbName, tableName, result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
+        }
+        return result.getGroupId();
     }
 
     public void registerTaskInGroup(long groupId, long taskId) throws Exception {
@@ -562,46 +586,53 @@ public class FeServiceClient {
         request.setGroupId(groupId);
         request.setTaskId(taskId);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteRegisterResult result;
         try {
-            TInsertOverwriteRegisterResult result =
-                    masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
-                            "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
+                    "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("register iot in group to catalog {} failed, groupId={}, taskId={}, err={}", name,
+                    groupId, taskId, result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public void taskGroupSuccess(String dbName, String tableName, long groupId) throws DdlException {
+    public void taskGroupSuccess(String catalogName, String dbName, String tableName, long groupId)
+            throws DdlException {
         TInsertOverwriteTaskRequest request = new TInsertOverwriteTaskRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setGroupId(groupId);
         request.setIsSuccess(true);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteTaskResult result;
         try {
-            TInsertOverwriteTaskResult result =
-                    masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
-                            "failed to task group success to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
+                    "failed to task group success to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
             }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new DdlException(result.getStatus().getErrorMsgs().get(0));
-            }
+
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task group success to catalog {} failed, cost={}ms", name, costMs, e);
             throw new DdlException(e.getMessage());
+        }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("task group success to catalog {} failed, groupId={}, err={}", name,
+                    groupId, result.getStatus().getErrorMsgs().get(0));
+            throw new DdlException(result.getStatus().getErrorMsgs().get(0));
         }
     }
 
@@ -612,20 +643,22 @@ public class FeServiceClient {
         request.setIsSuccess(true);
         request.setTaskId(taskId);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteTaskResult result;
         try {
-            TInsertOverwriteTaskResult result =
-                    masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
-                            "failed to task success to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
+                    "failed to task success to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new Exception(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task success to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
+        }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("task success to catalog {} failed, taskId={}, err={}", name,
+                    taskId, result.getStatus().getErrorMsgs().get(0));
+            throw new Exception(result.getStatus().getErrorMsgs().get(0));
         }
     }
 
@@ -636,20 +669,22 @@ public class FeServiceClient {
         request.setIsSuccess(false);
         request.setTaskId(taskId);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteTaskResult result;
         try {
-            TInsertOverwriteTaskResult result =
-                    masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
-                            "failed to task fail to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
+                    "failed to task fail to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new Exception(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task fail to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
+        }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("task fail to catalog {} failed, taskId={}, err={}", name,
+                    taskId, result.getStatus().getErrorMsgs().get(0));
+            throw new Exception(result.getStatus().getErrorMsgs().get(0));
         }
     }
 
@@ -660,79 +695,88 @@ public class FeServiceClient {
         request.setGroupId(groupId);
         request.setIsSuccess(false);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteTaskResult result;
         try {
-            TInsertOverwriteTaskResult result =
-                    masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
-                            "failed to task group fail to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
+                    "failed to task group fail to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new Exception(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task group fail to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("task group fail to catalog {} failed, groupId={}, err={}", name,
+                    groupId, result.getStatus().getErrorMsgs().get(0));
+            throw new Exception(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public void recordRunningTableOrException(String dbName, String tableName) throws Exception {
+    public void recordRunningTableOrException(String catalogName, String dbName, String tableName) throws Exception {
         TInsertOverwriteRecordRequest request = new TInsertOverwriteRecordRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setIsAdd(true);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteRecordResult result;
         try {
-            TInsertOverwriteRecordResult result =
-                    masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
-                            "failed to record running table or exception to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
+                    "failed to record running table or exception to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new Exception(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("record running table or exception to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("record running table or exception to catalog {} failed, err={}", name,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new Exception(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public void dropRunningRecord(String dbName, String tableName) throws Exception {
+    public void dropRunningRecord(String catalogName, String dbName, String tableName) throws Exception {
         TInsertOverwriteRecordRequest request = new TInsertOverwriteRecordRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setDb(dbName);
         request.setTbl(tableName);
         request.setIsAdd(false);
         long startTime = System.currentTimeMillis();
+        TInsertOverwriteRecordResult result;
         try {
-            TInsertOverwriteRecordResult result =
-                    masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
-                            "failed to drop running record to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
+                    "failed to drop running record to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new Exception(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("drop running record to catalog {} failed, cost={}ms", name, costMs, e);
             throw e;
         }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("drop running record to catalog {} failed, err={}", name,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new Exception(result.getStatus().getErrorMsgs().get(0));
+        }
     }
 
-    public void recordFinishedLoadJob(String label, long transactionId, String dbName, String tableName,
-                                      long createTimestamp, String failMsg, String trackingUrl, String firstErrorMsg,
-                                      long jobId) throws MetaNotFoundException {
+    public void recordFinishedLoadJob(String label, long transactionId, String catalogName, String dbName,
+                                      String tableName, long createTimestamp, String failMsg, String trackingUrl,
+                                      String firstErrorMsg, long jobId) throws MetaNotFoundException {
         TRecordFinishedLoadJobRequest request = new TRecordFinishedLoadJobRequest();
         request.setUser(user);
         request.setPasswd(password);
+        request.setCatalog(catalogName);
         request.setLabel(label);
         request.setDb(dbName);
         request.setTbl(tableName);
@@ -743,20 +787,22 @@ public class FeServiceClient {
         request.setFirstErrMsg(firstErrorMsg);
         request.setJobId(jobId);
         long startTime = System.currentTimeMillis();
+        TRecordFinishedLoadJobResult result;
         try {
-            TRecordFinishedLoadJobResult result =
-                    masterCallWithRetry(client -> client.recordFinishedLoadJobRequest(request),
-                            "failed to record finished load job to remote doris:" + name, timeoutMs);
+            result = masterCallWithRetry(client -> client.recordFinishedLoadJobRequest(request),
+                    "failed to record finished load job to remote doris:" + name, timeoutMs);
             if (result.isSetMasterAddress()) {
                 master = result.getMasterAddress();
-            }
-            if (result.getStatus().getStatusCode() != TStatusCode.OK) {
-                throw new MetaNotFoundException(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("record finished load job to catalog {} failed, cost={}ms", name, costMs, e);
             throw new MetaNotFoundException(e.getMessage());
+        }
+        if (result.getStatus().getStatusCode() != TStatusCode.OK) {
+            LOG.warn("record finished load job to catalog {} failed, err={}", name,
+                    result.getStatus().getErrorMsgs().get(0));
+            throw new MetaNotFoundException(result.getStatus().getErrorMsgs().get(0));
         }
     }
 }

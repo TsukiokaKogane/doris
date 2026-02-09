@@ -213,18 +213,17 @@ public class FeServiceClient {
             try {
                 T result = call.call(client);
                 returnObj = true;
-                if (TResultAdapter.getStatus(result).getStatusCode() == TStatusCode.NOT_MASTER) {
+                if (TResultAdapter.getStatus(result).getStatusCode() == TStatusCode.NOT_MASTER && ) {
                     if (TResultAdapter.getMasterAddress(result) != null) {
                         master = TResultAdapter.getMasterAddress(result);
-                    } else {
-                        index++;
-                        master = addresses.get((index) % addresses.size());
+                        continue;
                     }
                 } else {
                     return result;
                 }
-                index++;
                 retries++;
+                index++;
+                master = addresses.get((index) % addresses.size());
             } catch (TException | IOException e) {
                 lastException = e;
                 retries++;

@@ -1785,15 +1785,15 @@ struct TInsertOverwriteRegisterResult {
 }
 
 struct TInsertOverwriteTaskRequest {
-    1: required string user
-    2: required string passwd
+    1: optional string user
+    2: optional string passwd
     3: optional string token
     4: optional string catalog
     5: optional string db
     6: optional string tbl
     7: optional i64 group_id
     8: optional i64 task_id
-    9: required bool is_success
+    9: optional bool is_success
 }
 
 struct TInsertOverwriteTaskResult {

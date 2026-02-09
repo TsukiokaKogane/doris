@@ -1690,7 +1690,7 @@ struct TBeginRemoteTxnRequest {
 }
 
 struct TBeginRemoteTxnResult {
-    1: required Status.TStatus status
+    1: optional Status.TStatus status
     2: optional i64 txn_id
     3: optional Types.TNetworkAddress master_address
 }

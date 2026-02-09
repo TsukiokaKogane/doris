@@ -119,7 +119,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
                 }
             }
             this.txnId = result.getTxnId();
-            LOG.info("begin remote txn success, catalog={}, db={}, table={}, label={}, txnId={}",
+            LOG.warn("begin remote txn success, catalog={}, db={}, table={}, label={}, txnId={}",
                     database.getCatalog().getName(), remoteDbName, remoteTableName, labelName, txnId);
         } catch (Exception e) {
             LOG.info("begin remote txn failed, catalog={}, db={}, table={}, label={}, errMsg={}",

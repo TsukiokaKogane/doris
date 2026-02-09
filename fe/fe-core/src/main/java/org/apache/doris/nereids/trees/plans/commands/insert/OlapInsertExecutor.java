@@ -197,17 +197,8 @@ public class OlapInsertExecutor extends AbstractInsertExecutor {
         state.addTableIndexes((OlapTable) table);
     }
 
-    /**
-     * Abort current transaction when insert fails.
-     * Subclasses can override this method to customize abort behavior.
-     */
-    protected void abortTransactionOnFail() {
-        try {
-            Env.getCurrentGlobalTransactionMgr().abortTransaction(database.getId(), txnId, errMsg);
-        } catch (UserException e) {
-            LOG.warn("abort local transaction failed, dbId={}, txnId={}, reason={}",
-                    database.getId(), txnId, e.getMessage(), e);
-        }
+    protected void abortTransactionOnFail() throws UserException {
+        Env.getCurrentGlobalTransactionMgr().abortTransaction(database.getId(), txnId, errMsg);
     }
 
     @Override

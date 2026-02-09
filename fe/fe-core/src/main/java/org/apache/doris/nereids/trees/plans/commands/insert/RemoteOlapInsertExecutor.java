@@ -233,7 +233,7 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
      * This method is best-effort and will not throw exception to user.
      */
     @Override
-    protected void abortTransactionOnFail() {
+    protected void abortTransactionOnFail() throws UserException {
         RemoteDorisExternalCatalog remoteCatalog = ((RemoteOlapTable) table).getCatalog();
         FeServiceClient client = remoteCatalog.getFeServiceClient();
         TAbortRemoteTxnRequest request = new TAbortRemoteTxnRequest();
@@ -247,10 +247,12 @@ public class RemoteOlapInsertExecutor extends OlapInsertExecutor {
             } else {
                 LOG.warn("abort remote transaction failed. catalog={}, txnId={}, err={}",
                         remoteCatalog.getName(), txnId, result.getStatus().getErrorMsgs().get(0));
+                throw new UserException(result.getStatus().getErrorMsgs().get(0));
             }
         } catch (Exception e) {
             LOG.warn("abort remote transaction failed unexpectedly. catalog={}, txnId={}, err={}",
                     remoteCatalog.getName(), txnId, e.getMessage(), e);
+            throw new UserException("abort remote transaction failed unexpectedly. " + e.getMessage(), e);
         }
     }
 

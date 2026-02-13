@@ -70,6 +70,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 public class FeServiceClient {
@@ -82,7 +83,7 @@ public class FeServiceClient {
     private final String password;
     private final int retryCount;
     private final int timeoutMs;
-    private volatile TNetworkAddress master;
+    private AtomicReference<TNetworkAddress> master =  new AtomicReference<>(null);
 
     public FeServiceClient(String name, List<TNetworkAddress> addresses, String user, String password,
                            int retryCount, int timeoutS) {
@@ -201,34 +202,36 @@ public class FeServiceClient {
         int retries = 0;
         Exception lastException = null;
         int index = random.nextInt(addresses.size());
-        if (master == null) {
-            master = addresses.get((index) % addresses.size());
+        TNetworkAddress address = master.get();
+        if (address == null) {
+            address = addresses.get((index) % addresses.size());
         }
-
         FrontendService.Client client = null;
         while (retries < retryCount) {
-            TNetworkAddress clientAddr = master;
+            TNetworkAddress clientAddr = address;
             client = getRemoteFeClient(clientAddr, timeout);
             boolean returnObj = false;
             try {
                 T result = call.call(client);
                 returnObj = true;
+                if (TResultAdapter.getMasterAddress(result) != null) {
+                    master.set(TResultAdapter.getMasterAddress(result));
+                    address = (TResultAdapter.getMasterAddress(result));
+                }
                 if (TResultAdapter.getStatus(result).getStatusCode() == TStatusCode.NOT_MASTER) {
-                    if (TResultAdapter.getMasterAddress(result) != null) {
-                        master = TResultAdapter.getMasterAddress(result);
-                    } else {
+                    if (TResultAdapter.getMasterAddress(result) == null) {
                         index++;
-                        master = addresses.get((index) % addresses.size());
+                        address = addresses.get((index) % addresses.size());
                     }
                     retries++;
-                } else {
-                    return result;
+                    continue;
                 }
+                return result;
             } catch (TException | IOException e) {
                 lastException = e;
                 retries++;
                 index++;
-                master = addresses.get((index) % addresses.size());
+                address = (addresses.get((index) % addresses.size()));
             } catch (Exception e) {
                 throw new RuntimeException(errorMsg + ":" + e.getMessage(), e);
             } finally {
@@ -406,9 +409,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.getMasterAddress(request),
                     "failed to get master address from remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("get master address for catalog {} failed, cost={}ms", name, costMs, e);
@@ -419,7 +419,11 @@ public class FeServiceClient {
                     result.getStatus().getErrorMsgs().get(0));
             throw new RuntimeException(result.getStatus().getErrorMsgs().get(0));
         }
-        return master;
+        if (master != null) {
+            return master.get();
+        } else {
+            return null;
+        }
     }
 
     public void addPartitions(String catalogName, String dbName, String tableName, List<String> partitionNames,
@@ -439,9 +443,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.addOrDropPartitions(request),
                     "failed to add partitions to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("add partitions to catalog {} failed, cost={}ms", name, costMs, e);
@@ -471,10 +472,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.addOrDropPartitions(request),
                     "failed to drop partitions to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
-
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("drop partitions to catalog {} failed, cost={}ms", name, costMs, e);
@@ -504,10 +501,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.replacePartitions(request),
                     "failed to replace partitions to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
-
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("replace partitions to catalog {} failed, cost={}ms", name, costMs, e);
@@ -534,9 +527,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
                     "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
@@ -562,9 +552,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
                     "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
@@ -589,9 +576,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.registerInsertOverwriteTask(request),
                     "failed to register insert overwrite task to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("register insert overwrite task to catalog {} failed, cost={}ms", name, costMs, e);
@@ -619,10 +603,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
                     "failed to task group success to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
-
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task group success to catalog {} failed, cost={}ms", name, costMs, e);
@@ -646,9 +626,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
                     "failed to task success to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task success to catalog {} failed, cost={}ms", name, costMs, e);
@@ -672,9 +649,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
                     "failed to task fail to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task fail to catalog {} failed, cost={}ms", name, costMs, e);
@@ -698,9 +672,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.insertOverwriteTaskAction(request),
                     "failed to task group fail to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("task group fail to catalog {} failed, cost={}ms", name, costMs, e);
@@ -726,9 +697,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
                     "failed to record running table or exception to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("record running table or exception to catalog {} failed, cost={}ms", name, costMs, e);
@@ -754,9 +722,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.addOrDropInsertOverwriteRecord(request),
                     "failed to drop running record to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("drop running record to catalog {} failed, cost={}ms", name, costMs, e);
@@ -790,9 +755,6 @@ public class FeServiceClient {
         try {
             result = masterCallWithRetry(client -> client.recordFinishedLoadJobRequest(request),
                     "failed to record finished load job to remote doris:" + name, timeoutMs);
-            if (result.isSetMasterAddress()) {
-                master = result.getMasterAddress();
-            }
         } catch (Exception e) {
             long costMs = System.currentTimeMillis() - startTime;
             LOG.warn("record finished load job to catalog {} failed, cost={}ms", name, costMs, e);

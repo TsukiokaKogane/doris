@@ -448,7 +448,7 @@ VOlapTablePartitionParam::VOlapTablePartitionParam(std::shared_ptr<OlapTableSche
     }
 
     if (t_param.__isset.master_address) {
-        _master_address = new TNetworkAddress(t_param.master_address);
+        _master_address = std::make_shared<TNetworkAddress>(t_param.master_address);
     }
 
     if (_is_auto_partition) {
@@ -486,9 +486,6 @@ VOlapTablePartitionParam::VOlapTablePartitionParam(std::shared_ptr<OlapTableSche
 }
 
 VOlapTablePartitionParam::~VOlapTablePartitionParam() {
-    if (_master_address != nullptr) {
-        delete _master_address;
-    }
     _mem_tracker->release(_mem_usage);
 }
 

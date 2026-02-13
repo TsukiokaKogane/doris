@@ -366,7 +366,7 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
     // we should select the factory type first, but we can not initial InsertExecutor at this time,
     // because Nereids's DistributePlan are not gernerated, so we return factory and after the
     // DistributePlan have been generated, we can create InsertExecutor
-    private ExecutorFactory selectInsertExecutorFactory(
+    ExecutorFactory selectInsertExecutorFactory(
             NereidsPlanner planner, ConnectContext ctx, StmtExecutor stmtExecutor, TableIf targetTableIf) {
         try {
             stmtExecutor.setPlanner(planner);

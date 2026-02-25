@@ -392,11 +392,17 @@ public class InsertIntoTableCommand extends Command implements NeedAuditEncrypti
             }
 
             if (physicalSink instanceof PhysicalOlapTableSink) {
+                OlapTable olapTable;
+                if (targetTableIf instanceof RemoteDorisExternalTable) {
+                    if (((RemoteDorisExternalTable) targetTableIf).useArrowFlight()) {
+                        throw new AnalysisException("insert remote doris only support"
+                                + " when catalog use_arrow_flight is false");
+                    }
+                    olapTable = ((RemoteDorisExternalTable) targetTableIf).getOlapTable();
+                } else {
+                    olapTable = (OlapTable) targetTableIf;
+                }
                 boolean emptyInsert = childIsEmptyRelation(physicalSink);
-                OlapTable olapTable = targetTableIf instanceof RemoteDorisExternalTable
-                        ? ((RemoteDorisExternalTable) targetTableIf).getOlapTable()
-                        : (OlapTable) targetTableIf;
-
                 ExecutorFactory executorFactory;
                 // the insertCtx contains some variables to adjust SinkNode
                 if (ctx.isTxnModel()) {

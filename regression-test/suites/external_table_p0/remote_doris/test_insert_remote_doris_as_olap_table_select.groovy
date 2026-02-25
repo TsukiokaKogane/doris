@@ -372,7 +372,7 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         select id,  JSON_EXTRACT_INT(c_json, '\$.id') as json_id, cast(c_variant['message'] as string) as v_msg from `${catalog_name}`.`${db_name}`.`remote_json_variant` order by id
     """
 
-    // test unique table
+    // test unique table mow
     sql """
         CREATE TABLE `${db_name}`.`left_inner_unique` (
           log_type        INT            NOT NULL,
@@ -385,7 +385,7 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
         );
     """
     sql """
-        INSERT INTO `${db_name}`.`left_inner_unique` VALUES
+        INSERT INTO `${catalog_name}`.`${db_name}`.`left_inner_unique` VALUES
         (1,'reason1'),
         (2,'reason2'),
         (3,'reason3');
@@ -415,6 +415,43 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
     qt_join_unique """
         select * from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
             join `${catalog_name}`.`${db_name}`.`right_remote_table_unique` b on a.`log_type` = b.`log_type` and b.op_id=2000 order by a.`log_type`
+    """
+
+    // test unique table mor
+    sql """
+        CREATE TABLE `${db_name}`.`remote_table_unique_mor` (
+          log_time        DATE       NOT NULL,
+          log_type        INT            NOT NULL,
+          error_code      INT,
+          error_msg       VARCHAR(1024),
+          op_id           BIGINT,
+          op_time         DATETIME
+        ) ENGINE=OLAP
+        UNIQUE KEY(log_time, log_type, error_code)
+        DISTRIBUTED BY HASH(`log_type`) BUCKETS 1
+        PROPERTIES (
+        "replication_allocation" = "tag.location.default: 1"
+        );
+    """
+    sql """
+        INSERT INTO `${catalog_name}`.`${db_name}`.`remote_table_unique_mor` VALUES
+        ('2023-01-01',1,100,'error1',1000,'2023-01-01 00:00:00'),
+        ('2023-01-02',2,200,'error2',2000,'2023-01-02 00:00:00');
+    """
+
+    qt_join_unique """
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
+            join `${catalog_name}`.`${db_name}`.`remote_table_unique_mor` b on a.`log_type` = b.`log_type` order by a.`log_type`
+    """
+
+    sql """
+        INSERT INTO `${catalog_name}`.`${db_name}`.`remote_table_unique_mor` 
+        select * from `${catalog_name}`.`${db_name}`.`right_remote_table_unique`
+    """
+
+    qt_join_unique """
+        select * from `${catalog_name}`.`${db_name}`.`left_inner_unique` a
+            join `${catalog_name}`.`${db_name}`.`remote_table_unique_mor` b on a.`log_type` = b.`log_type` order by a.`log_type`
     """
 
     // test aggregate table
@@ -449,6 +486,33 @@ suite("test_insert_remote_doris_as_olap_table_select", "p0,external,doris,extern
             join `${catalog_name}`.`${db_name}`.`right_remote_table_aggregate` b on a.`log_type` = b.`log_type` group by b.`log_type` order by b.`log_type`
     """
 
-    sql """ DROP DATABASE IF EXISTS ${db_name} """
+   
     sql """ DROP CATALOG IF EXISTS `${catalog_name}` """
+
+    def catalog_name2 = "test_insert_remote_doris_arrow_flight_catalog_not_support"
+    sql """
+        CREATE CATALOG `${catalog_name2}` PROPERTIES (
+                'type' = 'doris',
+                'fe_http_hosts' = 'http://${remote_doris_host}:${remote_doris_http_port}',
+                'fe_arrow_hosts' = '${remote_doris_host}:${remote_doris_arrow_port}',
+                'fe_thrift_hosts' = '${remote_doris_host}:${remote_doris_thrift_port}',
+                'user' = '${remote_doris_user}',
+                'password' = '${remote_doris_psw}',
+                'use_arrow_flight' = 'true'
+        );
+    """
+
+    // test insert into arrow flight doris catalog not support
+    test {
+          sql """
+            INSERT INTO `${catalog_name2}`.`${db_name}`.`left_inner_unique` VALUES
+            (1,'reason1'),
+            (2,'reason2'),
+            (3,'reason3');
+        """
+        exception "insert remote doris only support when catalog use_arrow_flight is false"
+    }
+
+    sql """ DROP CATALOG IF EXISTS `${catalog_name2}` """
+    sql """ DROP DATABASE IF EXISTS ${db_name} """
 }

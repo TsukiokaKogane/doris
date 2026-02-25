@@ -47,9 +47,6 @@ import java.util.function.Predicate;
 
 class InsertIntoTableCommandTest {
     @Mock
-    private ConnectContext ctx;
-
-    @Mock
     private StmtExecutor stmtExecutor;
 
     @Mock
@@ -73,6 +70,41 @@ class InsertIntoTableCommandTest {
     }
 
     @Test
+    void testSelectInsertExecutorFactoryForRemoteTableWithArrowflightlException() {
+        InsertIntoTableCommand command = new InsertIntoTableCommand(
+                PlanType.INSERT_INTO_TABLE_COMMAND,
+                logicalPlan,
+                Optional.empty(),
+                Optional.empty(),
+                Optional.empty(),
+                true,
+                Optional.empty()
+        );
+
+        ConnectContext ctx = Mockito.mock(ConnectContext.class);
+        Mockito.when(ctx.getConnectType()).thenReturn(ConnectContext.ConnectType.MYSQL);
+        Mockito.when(ctx.getMysqlChannel()).thenReturn(null);
+        Mockito.when(ctx.queryId()).thenReturn(new TUniqueId());
+
+        NereidsPlanner planner = Mockito.mock(NereidsPlanner.class);
+        PhysicalPlan physicalPlan = Mockito.mock(PhysicalPlan.class);
+        PhysicalSink physicalSink = Mockito.mock(PhysicalSink.class);
+        Mockito.when(physicalPlan.children()).thenReturn(Lists.newArrayList(physicalSink));
+        Mockito.when(planner.getPhysicalPlan()).thenReturn(physicalPlan);
+        Mockito.when(physicalPlan.collect(ArgumentMatchers.any(Predicate.class)))
+                .thenReturn(Sets.newSet(physicalSink));
+        Mockito.when(planner.getFragments()).thenReturn(Lists.newArrayList(planFragment));
+        Mockito.when(planFragment.getSink()).thenReturn(dataSink);
+        Mockito.when(remoteDorisExternalTable.getOlapTable()).thenReturn(olapTable);
+
+        Mockito.when(remoteDorisExternalTable.useArrowFlight()).thenReturn(true);
+
+        Assertions.assertThrows(AnalysisException.class, () -> {
+            command.selectInsertExecutorFactory(planner, ctx, stmtExecutor, remoteDorisExternalTable);
+        }, "insert remote doris only support when catalog use_arrow_flight is false");
+    }
+
+    @Test
     void testSelectInsertExecutorFactoryForRemoteTableWithTxnModelException() {
         InsertIntoTableCommand command = new InsertIntoTableCommand(
                 PlanType.INSERT_INTO_TABLE_COMMAND,
@@ -84,9 +116,12 @@ class InsertIntoTableCommandTest {
                 Optional.empty()
         );
 
+        ConnectContext ctx = Mockito.mock(ConnectContext.class);
         Mockito.when(ctx.isTxnModel()).thenReturn(true);
         Mockito.when(ctx.getConnectType()).thenReturn(ConnectContext.ConnectType.MYSQL);
         Mockito.when(ctx.getMysqlChannel()).thenReturn(null);
+        Mockito.when(ctx.queryId()).thenReturn(new TUniqueId());
+
         NereidsPlanner planner = Mockito.mock(NereidsPlanner.class);
         PhysicalPlan physicalPlan = Mockito.mock(PhysicalPlan.class);
         PhysicalSink physicalSink = Mockito.mock(PhysicalSink.class);

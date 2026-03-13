@@ -81,6 +81,7 @@ import org.apache.doris.catalog.TabletMeta;
 import org.apache.doris.catalog.Type;
 import org.apache.doris.catalog.View;
 import org.apache.doris.catalog.info.PartitionNamesInfo;
+import org.apache.doris.catalog.stream.BaseStream;
 import org.apache.doris.clone.DynamicPartitionScheduler;
 import org.apache.doris.cloud.catalog.CloudEnv;
 import org.apache.doris.cloud.transaction.CloudGlobalTransactionMgr;
@@ -847,7 +848,7 @@ public class InternalCatalog implements CatalogIf<Database> {
     }
 
     @Override
-    public void dropTable(String dbName, String tableName, boolean isView, boolean isMtmv,
+    public void dropTable(String dbName, String tableName, boolean isView, boolean isMtmv, boolean isStream,
             boolean ifExists, boolean mustTemporary, boolean force) throws DdlException {
         Map<String, Long> costTimes = new TreeMap<String, Long>();
         StopWatch watch = StopWatch.createStarted();
@@ -890,6 +891,15 @@ public class InternalCatalog implements CatalogIf<Database> {
                         genDropHint(dbName, table));
             } else if (isMtmv && !(table instanceof MTMV)) {
                 ErrorReport.reportDdlException(ErrorCode.ERR_WRONG_OBJECT, dbName, tableName, "MTMV",
+                        genDropHint(dbName, table));
+            }
+
+            // Check if a stream
+            if (!isStream && table instanceof BaseStream) {
+                ErrorReport.reportDdlException(ErrorCode.ERR_WRONG_OBJECT, dbName, tableName, "TABLE",
+                        genDropHint(dbName, table));
+            } else if (isStream && !(table instanceof BaseStream)) {
+                ErrorReport.reportDdlException(ErrorCode.ERR_WRONG_OBJECT, dbName, tableName, "TABLE STREAM",
                         genDropHint(dbName, table));
             }
 
@@ -987,6 +997,9 @@ public class InternalCatalog implements CatalogIf<Database> {
         if (table instanceof OlapTable) {
             Env.getCurrentEnv().getMtmvService().dropTable(table);
         }
+        if (table instanceof BaseStream) {
+            Env.getCurrentEnv().getStreamManager().removeStream((BaseStream) table);
+        }
         if (Config.isCloudMode()) {
             ((CloudGlobalTransactionMgr) Env.getCurrentGlobalTransactionMgr()).afterDropTable(db.getId(),
                     table.getId());
@@ -1012,6 +1025,9 @@ public class InternalCatalog implements CatalogIf<Database> {
         }
         if (table instanceof View) {
             Env.getCurrentEnv().getMtmvService().dropView(new BaseTableInfo(table));
+        }
+        if (table instanceof BaseStream) {
+            Env.getCurrentEnv().getStreamManager().removeStream((BaseStream) table);
         }
         Env.getCurrentEnv().getAnalysisManager().removeTableStats(table.getId());
         Env.getCurrentEnv().getDictionaryManager().dropTableDictionaries(db.getName(), table.getName());

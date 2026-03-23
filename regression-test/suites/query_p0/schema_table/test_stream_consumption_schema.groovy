@@ -132,6 +132,6 @@ suite("test_stream_consumption_schema") {
         );
     """
 
-    qt_sql "select DB_NAME,STREAM_NAME,UNIT,CONSUMPTION_STATUS,LAG,LAST_CONSUMPTION_TIME from information_schema.stream_consumption where DB_NAME = 'test_stream_consumption_db' order by STREAM_NAME;"
+    qt_sql "select DB_NAME,STREAM_NAME,UNIT,CONSUMPTION_STATUS,LAG,LAST_CONSUMPTION_TIME from information_schema.table_stream_consumption where DB_NAME = 'test_stream_consumption_db' order by STREAM_NAME, UNIT;"
     sql "DROP DATABASE IF EXISTS test_stream_consumption_db"
 }

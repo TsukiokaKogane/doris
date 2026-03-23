@@ -25,11 +25,8 @@ import org.apache.doris.utframe.TestWithFeService;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.UUID;
 
-
-public class CreateStreamTest extends TestWithFeService {
-    private static String runningDir = "fe/mocked/CreateStreamTest/" + UUID.randomUUID().toString() + "/";
+public class CreateTableStreamTest extends TestWithFeService {
 
     @Override
     protected int backendNum() {

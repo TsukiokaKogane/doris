@@ -29,7 +29,7 @@ import org.apache.doris.utframe.TestWithFeService;
 
 import org.junit.jupiter.api.Test;
 
-public class DropStreamTest extends TestWithFeService {
+public class DropTableStreamTest extends TestWithFeService {
 
     @Override
     protected int backendNum() {

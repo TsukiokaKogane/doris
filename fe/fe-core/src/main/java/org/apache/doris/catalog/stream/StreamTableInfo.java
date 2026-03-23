@@ -30,23 +30,23 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Optional;
 
-public class BaseTableInfo {
-    private static final Logger LOG = LogManager.getLogger(BaseTableInfo.class);
+public class StreamTableInfo {
+    private static final Logger LOG = LogManager.getLogger(StreamTableInfo.class);
     // for internal table we use id as identifier otherwise use name instead
     @SerializedName("ci")
-    private long ctlId;
+    private final long ctlId;
     @SerializedName("di")
-    private long dbId;
+    private final long dbId;
     @SerializedName("ti")
-    private long tableId;
+    private final long tableId;
     @SerializedName("tn")
-    private String tableName;
+    private final String tableName;
     @SerializedName("dn")
-    private String dbName;
+    private final  String dbName;
     @SerializedName("cn")
-    private String ctlName;
+    private final String ctlName;
 
-    public BaseTableInfo(TableIf table) {
+    public StreamTableInfo(TableIf table) {
         java.util.Objects.requireNonNull(table, "table is null");
         DatabaseIf database = table.getDatabase();
         java.util.Objects.requireNonNull(database, "database is null");
@@ -121,7 +121,7 @@ public class BaseTableInfo {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        BaseTableInfo that = (BaseTableInfo) o;
+        StreamTableInfo that = (StreamTableInfo) o;
         if (isInternalTable()) {
             return Objects.equal(tableId, that.tableId) && Objects.equal(
                     dbId, that.dbId) && Objects.equal(ctlId, that.ctlId);
@@ -129,6 +129,11 @@ public class BaseTableInfo {
             return Objects.equal(tableName, that.tableName) && Objects.equal(
                     dbName, that.dbName) && Objects.equal(ctlId, that.ctlId);
         }
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(tableName, dbName, ctlName);
     }
 
     @Override

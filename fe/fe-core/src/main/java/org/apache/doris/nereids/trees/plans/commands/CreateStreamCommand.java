@@ -42,7 +42,7 @@ public class CreateStreamCommand extends Command implements ForwardWithSync {
     public void run(ConnectContext ctx, StmtExecutor executor) throws Exception {
         executor.checkBlockRules();
         createStreamInfo.validate(ctx);
-        Env.getCurrentEnv().createStream(this);
+        Env.getCurrentEnv().getInternalCatalog().createTableStream(this);
     }
 
     @Override

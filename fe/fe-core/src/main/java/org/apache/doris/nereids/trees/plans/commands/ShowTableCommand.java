@@ -153,7 +153,7 @@ public class ShowTableCommand extends ShowCommand {
         }
         if (type.equals(PlanType.SHOW_STREAMS)) {
             // show streams
-            Set<Long> streamIds = Env.getCurrentEnv().getStreamManager().getStreamIds(dbIf);
+            Set<Long> streamIds = Env.getCurrentEnv().getTableStreamManager().getTableStreamIds(dbIf);
             for (Long streamId : streamIds) {
                 Optional<TableIf> table = dbIf.getTable(streamId);
                 if (!table.isPresent()) {

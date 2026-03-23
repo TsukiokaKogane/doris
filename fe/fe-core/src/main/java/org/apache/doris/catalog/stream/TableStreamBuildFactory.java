@@ -27,44 +27,44 @@ import com.google.common.base.Preconditions;
 
 import java.util.List;
 
-public class StreamBuildFactory {
+public class TableStreamBuildFactory {
     public static class BuildParams {
-        String streamName;
+        String tableStreamName;
         TableIf baseTable;
     }
 
     private BuildParams params;
 
-    public StreamBuildFactory() {
+    public TableStreamBuildFactory() {
         params = new BuildParams();
     }
 
-    public StreamBuildFactory withBaseTable(TableIf baseTable) {
+    public TableStreamBuildFactory withBaseTable(TableIf baseTable) {
         params.baseTable = baseTable;
         return this;
     }
 
-    public StreamBuildFactory withName(String name) {
-        params.streamName = name;
+    public TableStreamBuildFactory withName(String name) {
+        params.tableStreamName = name;
         return this;
     }
 
-    public BaseStream build() throws DdlException {
+    public BaseTableStream build() throws DdlException {
         Preconditions.checkNotNull(params, "The factory isn't initialized.");
-        Preconditions.checkNotNull(params.streamName, "Stream name isn't initialized.");
+        Preconditions.checkNotNull(params.tableStreamName, "Stream name isn't initialized.");
         Preconditions.checkNotNull(params.baseTable, "Stream base table isn't initialized.");
         List<Column> schema = new java.util.ArrayList<>(params.baseTable.getBaseSchema());
 
         // extra columns
-        Column changeTypeColumn = new Column(BaseStream.STREAM_CHANGE_TYPE_COL, Type.VARCHAR);
-        Column sequenceColumn = new Column(BaseStream.STREAM_SEQ_COL, Type.BIGINT);
+        Column changeTypeColumn = new Column(Column.STREAM_CHANGE_TYPE_COL, Type.VARCHAR);
+        Column sequenceColumn = new Column(Column.STREAM_SEQ_COL, Type.BIGINT);
         changeTypeColumn.setIsVisible(false);
         sequenceColumn.setIsVisible(false);
         schema.add(changeTypeColumn);
         schema.add(sequenceColumn);
         switch (params.baseTable.getType()) {
             case OLAP:
-                return new OlapTableStream(params.streamName, schema, params.baseTable);
+                return new OlapTableStream(params.tableStreamName, schema, params.baseTable);
             default:
                 throw new DdlException("unsupported stream base table type: " + params.baseTable.getType());
         }

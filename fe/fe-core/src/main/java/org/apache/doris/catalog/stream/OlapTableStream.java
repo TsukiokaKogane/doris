@@ -38,7 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public class OlapTableStream extends BaseStream {
+public class OlapTableStream extends BaseTableStream {
 
     @SerializedName("po")
     private Map<Long, Long> partitionOffset;
@@ -64,7 +64,7 @@ public class OlapTableStream extends BaseStream {
     }
 
     @Override
-    public String getStreamType() {
+    public String getTableStreamType() {
         return "OLAP_TABLE_STREAM";
     }
 
@@ -100,7 +100,7 @@ public class OlapTableStream extends BaseStream {
     }
 
     @Override
-    void fillStreamConsumptionInfo(List<TRow> dataBatch) {
+    void fillTableStreamConsumptionInfo(List<TRow> dataBatch) {
         OlapTable table = getBaseTableNullable();
         if (table == null) {
             return;

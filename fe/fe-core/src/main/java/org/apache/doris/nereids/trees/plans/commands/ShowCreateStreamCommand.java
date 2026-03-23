@@ -22,7 +22,7 @@ import org.apache.doris.catalog.DatabaseIf;
 import org.apache.doris.catalog.Env;
 import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.catalog.TableIf;
-import org.apache.doris.catalog.stream.BaseStream;
+import org.apache.doris.catalog.stream.BaseTableStream;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.ErrorCode;
 import org.apache.doris.common.ErrorReport;
@@ -63,7 +63,7 @@ public class ShowCreateStreamCommand extends ShowCommand {
                 .getCatalogOrAnalysisException(tblNameInfo.getCtl())
                 .getDbOrAnalysisException(tblNameInfo.getDb()).getTableOrAnalysisException(tblNameInfo.getTbl());
 
-        if (!(tableIf instanceof BaseStream)) {
+        if (!(tableIf instanceof BaseTableStream)) {
             ErrorReport.reportAnalysisException(tblNameInfo.toFullyQualified()
                     + " is not a stream, type:" + tableIf.getType());
         }
@@ -98,7 +98,7 @@ public class ShowCreateStreamCommand extends ShowCommand {
                 .getDbOrMetaException(tblNameInfo.getDb());
         TableIf stream = db.getTableOrMetaException(tblNameInfo.getTbl());
 
-        if (!(stream instanceof BaseStream)) {
+        if (!(stream instanceof BaseTableStream)) {
             ErrorReport.reportAnalysisException(ErrorCode.ERR_WRONG_OBJECT, tblNameInfo.getDb(), tblNameInfo.getTbl(),
                     "STREAM", "Use 'SHOW CREATE TABLE '" + tblNameInfo.getTbl());
         }

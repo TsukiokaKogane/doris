@@ -50,6 +50,6 @@ suite("test_stream_info_schema") {
         PROPERTIES('type' = 'append_only');
     """
 
-    qt_sql "select DB_NAME,STREAM_NAME,STREAM_TYPE,CONSUME_TYPE,STREAM_COMMENT,BASE_TABLE_NAME,BASE_TABLE_DB,BASE_TABLE_CTL,BASE_TABLE_TYPE,ENABLED,IS_STALE,STALE_REASON from information_schema.streams where DB_NAME = 'test_stream_info_db' order by STREAM_NAME;"
+    qt_sql "select DB_NAME,STREAM_NAME,STREAM_TYPE,CONSUME_TYPE,STREAM_COMMENT,BASE_TABLE_NAME,BASE_TABLE_DB,BASE_TABLE_CTL,BASE_TABLE_TYPE,ENABLED,IS_STALE,STALE_REASON from information_schema.table_streams where DB_NAME = 'test_stream_info_db' order by STREAM_NAME;"
     sql "DROP DATABASE IF EXISTS test_stream_info_db"
 }

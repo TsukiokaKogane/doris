@@ -46,9 +46,8 @@ import org.apache.doris.catalog.TableIf.TableType;
 import org.apache.doris.catalog.constraint.Constraint;
 import org.apache.doris.catalog.constraint.ConstraintManager;
 import org.apache.doris.catalog.info.PartitionNamesInfo;
-import org.apache.doris.catalog.stream.BaseStream;
-import org.apache.doris.catalog.stream.StreamBuildFactory;
-import org.apache.doris.catalog.stream.StreamManager;
+import org.apache.doris.catalog.stream.BaseTableStream;
+import org.apache.doris.catalog.stream.TableStreamManager;
 import org.apache.doris.clone.ColocateTableCheckerAndBalancer;
 import org.apache.doris.clone.DynamicPartitionScheduler;
 import org.apache.doris.clone.TabletChecker;
@@ -178,7 +177,6 @@ import org.apache.doris.nereids.trees.plans.commands.CancelBuildIndexCommand;
 import org.apache.doris.nereids.trees.plans.commands.Command;
 import org.apache.doris.nereids.trees.plans.commands.CreateDatabaseCommand;
 import org.apache.doris.nereids.trees.plans.commands.CreateMaterializedViewCommand;
-import org.apache.doris.nereids.trees.plans.commands.CreateStreamCommand;
 import org.apache.doris.nereids.trees.plans.commands.CreateTableLikeCommand;
 import org.apache.doris.nereids.trees.plans.commands.CreateViewCommand;
 import org.apache.doris.nereids.trees.plans.commands.DropCatalogRecycleBinCommand.IdType;
@@ -192,7 +190,6 @@ import org.apache.doris.nereids.trees.plans.commands.info.AlterMTMVPropertyInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.AlterMTMVRefreshInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.AlterMultiPartitionOp;
 import org.apache.doris.nereids.trees.plans.commands.info.AlterViewInfo;
-import org.apache.doris.nereids.trees.plans.commands.info.CreateStreamInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.CreateTableInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.CreateTableLikeInfo;
 import org.apache.doris.nereids.trees.plans.commands.info.CreateViewInfo;
@@ -597,7 +594,7 @@ public class Env {
 
     private LineageEventProcessor lineageEventProcessor;
 
-    private StreamManager streamManager;
+    private TableStreamManager tableStreamManager;
 
     // if a config is relative to a daemon thread. record the relation here. we will proactively change interval of it.
     private final Map<String, Supplier<MasterDaemon>> configtoThreads = ImmutableMap
@@ -712,8 +709,8 @@ public class Env {
         return keyManager;
     }
 
-    public StreamManager getStreamManager() {
-        return streamManager;
+    public TableStreamManager getTableStreamManager() {
+        return tableStreamManager;
     }
 
     private static class SingletonHolder {
@@ -871,7 +868,7 @@ public class Env {
         if (Config.agent_task_health_check_intervals_ms > 0) {
             this.agentTaskCleanupDaemon = new AgentTaskCleanupDaemon();
         }
-        this.streamManager = new StreamManager();
+        this.tableStreamManager = new TableStreamManager();
     }
 
     public void registerTempTableAndSession(Table table) {
@@ -2605,15 +2602,15 @@ public class Env {
         return checksum;
     }
 
-    public long loadStreamManager(DataInputStream in, long checksum) throws IOException {
-        this.streamManager = StreamManager.read(in);
-        LOG.info("finished replay StreamManager from image");
+    public long loadTableStreamManager(DataInputStream in, long checksum) throws IOException {
+        this.tableStreamManager = TableStreamManager.read(in);
+        LOG.info("finished replay TableStreamManager from image");
         return checksum;
     }
 
-    public long saveStreamManager(CountingDataOutputStream out, long checksum) throws IOException {
-        this.streamManager.write(out);
-        LOG.info("finished save StreamManager to image");
+    public long saveTableStreamManager(CountingDataOutputStream out, long checksum) throws IOException {
+        this.tableStreamManager.write(out);
+        LOG.info("finished save TableStreamManager to image");
         return checksum;
     }
 
@@ -4458,7 +4455,7 @@ public class Env {
 
         // 1.2 stream
         if (table.getType() == TableType.STREAM) {
-            BaseStream stream = (BaseStream) table;
+            BaseTableStream stream = (BaseTableStream) table;
 
             sb.append("CREATE STREAM ");
             sb.append('`').append(table.getName()).append('`').append('\n');
@@ -4846,8 +4843,8 @@ public class Env {
             if (table instanceof MTMV) {
                 ((MTMV) table).compatible(Env.getCurrentEnv().getCatalogMgr());
             }
-            if (table instanceof BaseStream) {
-                getStreamManager().addStream((BaseStream) table);
+            if (table instanceof BaseTableStream) {
+                getTableStreamManager().addTableStream((BaseTableStream) table);
             }
         } else {
             ExternalCatalog externalCatalog = (ExternalCatalog) catalogMgr.getCatalog(info.getCtlName());
@@ -6459,74 +6456,6 @@ public class Env {
                 throw new DdlException("Failed to create view[" + tableName + "].");
             }
             LOG.info("successfully create view[" + tableName + "-" + newView.getId() + "]");
-        }
-    }
-
-    public void createStream(CreateStreamCommand command) throws DdlException {
-        if (!Config.enable_table_stream) {
-            throw new DdlException("Table Stream is experimental."
-                    + " Please set enable_table_stream=true to enable it.");
-        }
-        CreateStreamInfo createStreamInfo = command.getCreateStreamInfo();
-        String dbName = createStreamInfo.getStreamName().getDb();
-        String streamName = createStreamInfo.getStreamName().getTbl();
-        // check if db exists
-        Database db = getInternalCatalog().getDbOrDdlException(dbName);
-        // check if table exists in db
-        boolean replace = false;
-        if (db.getTable(streamName).isPresent()) {
-            if (createStreamInfo.isIfNotExists()) {
-                LOG.info("create stream[{}] which already exists", streamName);
-                return;
-            } else if (createStreamInfo.isOrReplace()) {
-                replace = true;
-                LOG.info("stream[{}] already exists, need to replace it", streamName);
-            } else {
-                ErrorReport.reportDdlException(ErrorCode.ERR_TABLE_EXISTS_ERROR, streamName);
-            }
-        }
-        if (replace) {
-            throw new DdlException("do not support replace currently");
-        } else {
-            // get base table
-            CatalogIf baseCatalog;
-            if (Strings.isNullOrEmpty(createStreamInfo.getBaseTableName().getCtl())) {
-                baseCatalog = getInternalCatalog();
-            } else {
-                baseCatalog = getCatalogMgr()
-                        .getCatalogOrDdlException(createStreamInfo.getBaseTableName().getCtl());
-            }
-            BaseStream newStream;
-            TableIf baseTable = baseCatalog.getDbOrDdlException(createStreamInfo.getBaseTableName().getDb())
-                                    .getTableOrDdlException(createStreamInfo.getBaseTableName().getTbl());
-            // lock base table for stream init
-            baseTable.readLock();
-            try {
-                Map<String, String> properties = createStreamInfo.getProperties();
-                // build new stream
-                newStream = new StreamBuildFactory()
-                        .withName(streamName)
-                        .withBaseTable(baseTable)
-                        .build();
-                newStream.setComment(createStreamInfo.getComment());
-                try {
-                    newStream.setProperties(properties);
-                } catch (AnalysisException e) {
-                    throw new DdlException(e.getMessage(), e);
-                }
-                if (properties != null && !properties.isEmpty()) {
-                    // before here, all properties should be checked
-                    throw new DdlException("Unknown properties: " + properties);
-                }
-                newStream.setId((Env.getCurrentEnv().getNextId()));
-            } finally {
-                baseTable.readUnlock();
-            }
-            if (!db.createTableWithLock(newStream, false, createStreamInfo.isIfNotExists()).first) {
-                throw new DdlException("Failed to create stream[" + streamName + "].");
-            }
-            getStreamManager().addStream(newStream);
-            LOG.info("successfully create stream[{}]", streamName);
         }
     }
 

@@ -162,9 +162,9 @@ public class MetadataGenerator {
 
     private static final ImmutableMap<String, Integer> AUTHENTICATION_INTEGRATIONS_COLUMN_TO_INDEX;
 
-    private static final ImmutableMap<String, Integer> STREAMS_COLUMN_TO_INDEX;
+    private static final ImmutableMap<String, Integer> TABLE_STREAMS_COLUMN_TO_INDEX;
 
-    private static final ImmutableMap<String, Integer> STREAM_CONSUMPTION_COLUMN_TO_INDEX;
+    private static final ImmutableMap<String, Integer> TABLE_STREAM_CONSUMPTION_COLUMN_TO_INDEX;
 
     static {
         ImmutableMap.Builder<String, Integer> activeQueriesbuilder = new ImmutableMap.Builder();
@@ -253,21 +253,21 @@ public class MetadataGenerator {
         }
         AUTHENTICATION_INTEGRATIONS_COLUMN_TO_INDEX = authenticationIntegrationsBuilder.build();
 
-        ImmutableMap.Builder<String, Integer> streamsBuilder = new ImmutableMap.Builder();
-        List<Column> streamsBuilderColList = SchemaTable.TABLE_MAP.get("streams")
+        ImmutableMap.Builder<String, Integer> tableStreamsBuilder = new ImmutableMap.Builder();
+        List<Column> streamsBuilderColList = SchemaTable.TABLE_MAP.get("table_streams")
                 .getFullSchema();
         for (int i = 0; i < streamsBuilderColList.size(); i++) {
-            streamsBuilder.put(streamsBuilderColList.get(i).getName().toLowerCase(), i);
+            tableStreamsBuilder.put(streamsBuilderColList.get(i).getName().toLowerCase(), i);
         }
-        STREAMS_COLUMN_TO_INDEX = streamsBuilder.build();
+        TABLE_STREAMS_COLUMN_TO_INDEX = tableStreamsBuilder.build();
 
-        ImmutableMap.Builder<String, Integer> streamConsumptionBuilder = new ImmutableMap.Builder();
-        List<Column> streamConsumptionBuilderColList = SchemaTable.TABLE_MAP.get("stream_consumption")
+        ImmutableMap.Builder<String, Integer> tableStreamConsumptionBuilder = new ImmutableMap.Builder();
+        List<Column> tableStreamConsumptionBuilderColList = SchemaTable.TABLE_MAP.get("table_stream_consumption")
                 .getFullSchema();
-        for (int i = 0; i < streamConsumptionBuilderColList.size(); i++) {
-            streamsBuilder.put(streamConsumptionBuilderColList.get(i).getName().toLowerCase(), i);
+        for (int i = 0; i < tableStreamConsumptionBuilderColList.size(); i++) {
+            tableStreamConsumptionBuilder.put(tableStreamConsumptionBuilderColList.get(i).getName().toLowerCase(), i);
         }
-        STREAM_CONSUMPTION_COLUMN_TO_INDEX = streamConsumptionBuilder.build();
+        TABLE_STREAM_CONSUMPTION_COLUMN_TO_INDEX = tableStreamConsumptionBuilder.build();
     }
 
     public static TFetchSchemaTableDataResult getMetadataTable(TFetchSchemaTableDataRequest request) throws TException {
@@ -388,11 +388,11 @@ public class MetadataGenerator {
                 break;
             case STREAMS:
                 result = streamMetadataResult(schemaTableParams);
-                columnIndex = STREAMS_COLUMN_TO_INDEX;
+                columnIndex = TABLE_STREAMS_COLUMN_TO_INDEX;
                 break;
             case STREAM_CONSUMPTION:
                 result = streamConsumptionMetadataResult(schemaTableParams);
-                columnIndex = STREAM_CONSUMPTION_COLUMN_TO_INDEX;
+                columnIndex = TABLE_STREAM_CONSUMPTION_COLUMN_TO_INDEX;
                 break;
             default:
                 return errorResult("invalid schema table name.");
@@ -2089,7 +2089,7 @@ public class MetadataGenerator {
     private static TFetchSchemaTableDataResult streamMetadataResult(TSchemaTableRequestParams params) {
         TFetchSchemaTableDataResult result = new TFetchSchemaTableDataResult();
         List<TRow> dataBatch = Lists.newArrayList();
-        Env.getCurrentEnv().getStreamManager().fillStreamValuesMetadataResult(dataBatch);
+        Env.getCurrentEnv().getTableStreamManager().fillTableStreamValuesMetadataResult(dataBatch);
         result.setDataBatch(dataBatch);
         result.setStatus(new TStatus(TStatusCode.OK));
         return result;
@@ -2098,7 +2098,7 @@ public class MetadataGenerator {
     private static TFetchSchemaTableDataResult streamConsumptionMetadataResult(TSchemaTableRequestParams params) {
         TFetchSchemaTableDataResult result = new TFetchSchemaTableDataResult();
         List<TRow> dataBatch = Lists.newArrayList();
-        Env.getCurrentEnv().getStreamManager().fillStreamConsumptionValuesMetadataResult(dataBatch);
+        Env.getCurrentEnv().getTableStreamManager().fillStreamConsumptionValuesMetadataResult(dataBatch);
         result.setDataBatch(dataBatch);
         result.setStatus(new TStatus(TStatusCode.OK));
         return result;

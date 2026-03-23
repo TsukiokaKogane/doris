@@ -44,18 +44,18 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class StreamManager implements Writable {
-    private static final Logger LOG = LogManager.getLogger(StreamManager.class);
+public class TableStreamManager implements Writable {
+    private static final Logger LOG = LogManager.getLogger(TableStreamManager.class);
     @SerializedName(value = "dbStreamMap")
     private Map<Long, Set<Long>> dbStreamMap;
     protected MonitoredReentrantReadWriteLock rwLock;
 
-    public StreamManager() {
+    public TableStreamManager() {
         this.rwLock = new MonitoredReentrantReadWriteLock(true);
         this.dbStreamMap = new HashMap<>();
     }
 
-    public void addStream(BaseStream stream) {
+    public void addTableStream(BaseTableStream stream) {
         rwLock.writeLock().lock();
         try {
             dbStreamMap.computeIfAbsent(stream.getDatabase().getId(), k -> new HashSet<>()).add(stream.getId());
@@ -64,7 +64,7 @@ public class StreamManager implements Writable {
         }
     }
 
-    public void removeStream(BaseStream stream) {
+    public void removeTableStream(BaseTableStream stream) {
         rwLock.writeLock().lock();
         try {
             Optional.ofNullable(dbStreamMap.get(stream.getDatabase().getId()))
@@ -80,12 +80,12 @@ public class StreamManager implements Writable {
         Text.writeString(out, json);
     }
 
-    public static StreamManager read(DataInput in) throws IOException {
+    public static TableStreamManager read(DataInput in) throws IOException {
         String json = Text.readString(in);
-        return GsonUtils.GSON.fromJson(json, StreamManager.class);
+        return GsonUtils.GSON.fromJson(json, TableStreamManager.class);
     }
 
-    public Set<Long> getStreamIds(DatabaseIf db) {
+    public Set<Long> getTableStreamIds(DatabaseIf db) {
         Set<Long> result = new HashSet<>();
         rwLock.readLock().lock();
         try {
@@ -96,7 +96,7 @@ public class StreamManager implements Writable {
         return result;
     }
 
-    public void fillStreamValuesMetadataResult(List<TRow> dataBatch) {
+    public void fillTableStreamValuesMetadataResult(List<TRow> dataBatch) {
         Map<Long, Set<Long>> copiedMap = new HashMap<>();
         rwLock.readLock().lock();
         try {
@@ -117,8 +117,8 @@ public class StreamManager implements Writable {
                         }
                         continue;
                     }
-                    Preconditions.checkArgument(table.get() instanceof BaseStream);
-                    BaseStream stream = (BaseStream) table.get();
+                    Preconditions.checkArgument(table.get() instanceof BaseTableStream);
+                    BaseTableStream stream = (BaseTableStream) table.get();
                     if (stream.readLockIfExist()) {
                         try {
                             TRow trow = new TRow();
@@ -129,7 +129,7 @@ public class StreamManager implements Writable {
                             // STREAM_ID
                             trow.addToColumnValue(new TCell().setLongVal(stream.getId()));
                             // STREAM_TYPE
-                            trow.addToColumnValue(new TCell().setStringVal(stream.getStreamType()));
+                            trow.addToColumnValue(new TCell().setStringVal(stream.getTableStreamType()));
                             // CONSUME_TYPE
                             trow.addToColumnValue(new TCell().setStringVal(stream.getConsumeType()));
                             // STREAM_COMMENT
@@ -193,11 +193,11 @@ public class StreamManager implements Writable {
                         }
                         continue;
                     }
-                    Preconditions.checkArgument(table.get() instanceof BaseStream);
-                    BaseStream stream = (BaseStream) table.get();
+                    Preconditions.checkArgument(table.get() instanceof BaseTableStream);
+                    BaseTableStream stream = (BaseTableStream) table.get();
                     if (stream.readLockIfExist()) {
                         try {
-                            stream.fillStreamConsumptionInfo(dataBatch);
+                            stream.fillTableStreamConsumptionInfo(dataBatch);
                         } finally {
                             stream.readUnlock();
                         }

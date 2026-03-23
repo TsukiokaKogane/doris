@@ -31,7 +31,7 @@ import org.apache.doris.catalog.PrimitiveType;
 import org.apache.doris.catalog.ReplicaAllocation;
 import org.apache.doris.catalog.ScalarType;
 import org.apache.doris.catalog.Type;
-import org.apache.doris.catalog.stream.BaseStream;
+import org.apache.doris.catalog.stream.BaseTableStream;
 import org.apache.doris.common.AnalysisException;
 import org.apache.doris.common.Config;
 import org.apache.doris.common.DdlException;
@@ -2315,18 +2315,18 @@ public class PropertyAnalyzer {
         }
     }
 
-    public static BaseStream.StreamConsumeType analyzeStreamType(Map<String, String> properties)
+    public static BaseTableStream.StreamConsumeType analyzeStreamType(Map<String, String> properties)
             throws AnalysisException {
         if (properties != null && properties.containsKey(PROPERTIES_STREAM_TYPE)) {
             String value = properties.get(PROPERTIES_STREAM_TYPE);
-            BaseStream.StreamConsumeType type = BaseStream.StreamConsumeType.getType(value);
-            if (type.equals(BaseStream.StreamConsumeType.UNKNOWN)) {
+            BaseTableStream.StreamConsumeType type = BaseTableStream.StreamConsumeType.getType(value);
+            if (type.equals(BaseTableStream.StreamConsumeType.UNKNOWN)) {
                 throw new AnalysisException("not supported " + PropertyAnalyzer.PROPERTIES_STREAM_TYPE
                         +  ": " + value);
             }
             properties.remove(PROPERTIES_STREAM_TYPE);
             return type;
         }
-        return BaseStream.StreamConsumeType.DEFAULT;
+        return BaseTableStream.StreamConsumeType.DEFAULT;
     }
 }

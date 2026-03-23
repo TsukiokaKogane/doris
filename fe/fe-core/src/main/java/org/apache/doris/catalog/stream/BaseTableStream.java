@@ -34,7 +34,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-public abstract class BaseStream extends Table {
+public abstract class BaseTableStream extends Table {
     public enum StreamConsumeType {
         DEFAULT,
         APPEND_ONLY,
@@ -60,49 +60,46 @@ public abstract class BaseStream extends Table {
 
     private static ImmutableList<TableType> supportedTableTypeList = ImmutableList.of(TableType.OLAP);
 
-    @SerializedName("streamType")
+    @SerializedName("sct")
     protected StreamConsumeType streamConsumeType = StreamConsumeType.DEFAULT;
 
-    @SerializedName("showInitialRows")
+    @SerializedName("sir")
     protected boolean showInitialRows;
 
-    @SerializedName("baseTableInfo")
-    protected BaseTableInfo baseTableInfo;
+    @SerializedName("sti")
+    protected StreamTableInfo streamTableInfo;
 
-    @SerializedName("disabled")
+    @SerializedName("d")
     private boolean disabled;
 
-    @SerializedName("stale")
+    @SerializedName("s")
     private boolean stale;
 
-    @SerializedName("staleReason")
+    @SerializedName("sr")
     private String staleReason = "N/A";
 
     protected volatile TableIf baseTable;
 
-    public static final String STREAM_CHANGE_TYPE_COL = "__STREAM_CHANGE_TYPE__";
-    public static final String STREAM_SEQ_COL = "__STREAM_SEQUENCE__";
-
     // for persist
-    public BaseStream() {
+    public BaseTableStream() {
         super(TableType.STREAM);
     }
 
-    public BaseStream(long id, String streamName, List<Column> fullSchema, TableIf baseTable) {
+    public BaseTableStream(long id, String streamName, List<Column> fullSchema, TableIf baseTable) {
         super(id, streamName, TableType.STREAM, fullSchema);
-        this.baseTableInfo = new BaseTableInfo(baseTable);
+        this.streamTableInfo = new StreamTableInfo(baseTable);
         this.baseTable = baseTable;
         this.disabled = false;
         this.stale = false;
     }
 
-    public BaseStream(String streamName, List<Column> fullSchema, TableIf baseTable) {
+    public BaseTableStream(String streamName, List<Column> fullSchema, TableIf baseTable) {
         this(-1, streamName, fullSchema, baseTable);
     }
 
     public TableIf getBaseTableNullable() {
         if (baseTable == null) {
-            baseTable = baseTableInfo.getTableNullable();
+            baseTable = streamTableInfo.getTableNullable();
         }
         return baseTable;
     }
@@ -114,7 +111,7 @@ public abstract class BaseStream extends Table {
         streamConsumeType = PropertyAnalyzer.analyzeStreamType(properties);
     }
 
-    public String getStreamType() {
+    public String getTableStreamType() {
         return "BASE_STREAM";
     }
 
@@ -162,5 +159,8 @@ public abstract class BaseStream extends Table {
         Text.writeString(out, GsonUtils.GSON.toJson(this));
     }
 
-    abstract void fillStreamConsumptionInfo(List<TRow> dataBatch);
+    // fill table_stream_consumption info
+    // @param dataBatch the data batch to fill
+    // DB_NAME, STREAM_NAME, STREAM_ID, UNIT, CONSUMPTION_STATUS, LAG, LAST_CONSUMPTION_TIME
+    abstract void fillTableStreamConsumptionInfo(List<TRow> dataBatch);
 }

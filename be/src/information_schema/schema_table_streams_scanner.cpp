@@ -85,10 +85,10 @@ Status SchemaTableStreamsScanner::_get_table_streams_block_from_fe() {
 
     _table_streams_block = Block::create_unique();
     for (int i = 0; i < _s_table_streams_columns.size(); ++i) {
-        auto data_type =
-                DataTypeFactory::instance().create_data_type(_s_table_streams_columns[i].type, true);
+        auto data_type = DataTypeFactory::instance().create_data_type(
+                _s_table_streams_columns[i].type, true);
         _table_streams_block->insert(ColumnWithTypeAndName(data_type->create_column(), data_type,
-                                                     _s_table_streams_columns[i].name));
+                                                           _s_table_streams_columns[i].name));
     }
 
     _table_streams_block->reserve(_block_rows_limit);

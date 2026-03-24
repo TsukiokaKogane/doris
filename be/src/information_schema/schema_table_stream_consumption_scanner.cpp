@@ -44,7 +44,8 @@ std::vector<SchemaScanner::ColumnDesc>
 };
 
 SchemaTableStreamConsumptionScanner::SchemaTableStreamConsumptionScanner()
-        : SchemaScanner(_s_table_stream_consumption_columns, TSchemaTableType::SCH_TABLE_STREAM_CONSUMPTION) {}
+        : SchemaScanner(_s_table_stream_consumption_columns,
+                        TSchemaTableType::SCH_TABLE_STREAM_CONSUMPTION) {}
 
 SchemaTableStreamConsumptionScanner::~SchemaTableStreamConsumptionScanner() = default;
 
@@ -128,7 +129,8 @@ Status SchemaTableStreamConsumptionScanner::get_next_block_internal(Block* block
 
     int current_batch_rows = std::min(_block_rows_limit, _total_rows - _row_idx);
     MutableBlock mblock = MutableBlock::build_mutable_block(block);
-    RETURN_IF_ERROR(mblock.add_rows(_table_stream_consumption_block.get(), _row_idx, current_batch_rows));
+    RETURN_IF_ERROR(
+            mblock.add_rows(_table_stream_consumption_block.get(), _row_idx, current_batch_rows));
     _row_idx += current_batch_rows;
 
     *eos = _row_idx == _total_rows;

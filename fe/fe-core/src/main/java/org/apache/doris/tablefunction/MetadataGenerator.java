@@ -386,11 +386,11 @@ public class MetadataGenerator {
                 result = authenticationIntegrationsMetadataResult(schemaTableParams);
                 columnIndex = AUTHENTICATION_INTEGRATIONS_COLUMN_TO_INDEX;
                 break;
-            case STREAMS:
+            case TABLE_STREAMS:
                 result = streamMetadataResult(schemaTableParams);
                 columnIndex = TABLE_STREAMS_COLUMN_TO_INDEX;
                 break;
-            case STREAM_CONSUMPTION:
+            case TABLE_STREAM_CONSUMPTION:
                 result = streamConsumptionMetadataResult(schemaTableParams);
                 columnIndex = TABLE_STREAM_CONSUMPTION_COLUMN_TO_INDEX;
                 break;

@@ -846,8 +846,8 @@ public class SchemaTable extends Table {
                             .column("ALTER_USER", ScalarType.createStringType())
                             .column("MODIFY_TIME", ScalarType.createStringType())
                             .build()))
-            .put("streams",
-                    new SchemaTable(SystemIdGenerator.getNextId(), "streams", TableType.SCHEMA,
+            .put("table_streams",
+                    new SchemaTable(SystemIdGenerator.getNextId(), "table_streams", TableType.SCHEMA,
                             builder().column("DB_NAME", ScalarType.createVarchar(NAME_CHAR_LEN))
                              .column("STREAM_NAME", ScalarType.createVarchar(NAME_CHAR_LEN))
                              .column("STREAM_ID",  ScalarType.createType(PrimitiveType.BIGINT))
@@ -862,8 +862,8 @@ public class SchemaTable extends Table {
                              .column("IS_STALE", ScalarType.createType(PrimitiveType.BOOLEAN))
                              .column("STALE_REASON", ScalarType.createStringType())
                              .build()))
-            .put("stream_consumption",
-                    new SchemaTable(SystemIdGenerator.getNextId(), "stream_consumption", TableType.SCHEMA,
+            .put("table_stream_consumption",
+                    new SchemaTable(SystemIdGenerator.getNextId(), "table_stream_consumption", TableType.SCHEMA,
                             builder().column("DB_NAME", ScalarType.createVarchar(NAME_CHAR_LEN))
                             .column("STREAM_NAME", ScalarType.createVarchar(NAME_CHAR_LEN))
                             .column("STREAM_ID", ScalarType.createType(PrimitiveType.BIGINT))

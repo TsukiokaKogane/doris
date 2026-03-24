@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "information_schema/schema_stream_consumption_scanner.h"
+#include "information_schema/schema_table_stream_consumption_scanner.h"
 
 #include <cstddef>
 
@@ -33,7 +33,7 @@
 namespace doris {
 
 std::vector<SchemaScanner::ColumnDesc>
-        SchemaStreamConsumptionScanner::_s_stream_consumption_columns = {
+        SchemaTableStreamConsumptionScanner::_s_table_stream_consumption_columns = {
                 {"DB_NAME", TYPE_VARCHAR, sizeof(StringRef), true},
                 {"STREAM_NAME", TYPE_VARCHAR, sizeof(StringRef), true},
                 {"STREAM_ID", TYPE_BIGINT, sizeof(int64_t), true},
@@ -43,23 +43,23 @@ std::vector<SchemaScanner::ColumnDesc>
                 {"LAST_CONSUMPTION_TIME", TYPE_BIGINT, sizeof(int64_t), true},
 };
 
-SchemaStreamConsumptionScanner::SchemaStreamConsumptionScanner()
-        : SchemaScanner(_s_stream_consumption_columns, TSchemaTableType::SCH_STREAM_CONSUMPTION) {}
+SchemaTableStreamConsumptionScanner::SchemaTableStreamConsumptionScanner()
+        : SchemaScanner(_s_table_stream_consumption_columns, TSchemaTableType::SCH_TABLE_STREAM_CONSUMPTION) {}
 
-SchemaStreamConsumptionScanner::~SchemaStreamConsumptionScanner() = default;
+SchemaTableStreamConsumptionScanner::~SchemaTableStreamConsumptionScanner() = default;
 
-Status SchemaStreamConsumptionScanner::start(RuntimeState* state) {
+Status SchemaTableStreamConsumptionScanner::start(RuntimeState* state) {
     _block_rows_limit = state->batch_size();
     _rpc_timeout_ms = state->execution_timeout() * 1000;
     return Status::OK();
 }
 
-Status SchemaStreamConsumptionScanner::_get_stream_consumption_block_from_fe() {
+Status SchemaTableStreamConsumptionScanner::_get_table_stream_consumption_block_from_fe() {
     TNetworkAddress master_addr = ExecEnv::GetInstance()->cluster_info()->master_fe_addr;
 
     TSchemaTableRequestParams schema_table_request_params;
     TFetchSchemaTableDataRequest request;
-    request.__set_schema_table_name(TSchemaTableName::STREAM_CONSUMPTION);
+    request.__set_schema_table_name(TSchemaTableName::TABLE_STREAM_CONSUMPTION);
     request.__set_schema_table_params(schema_table_request_params);
 
     TFetchSchemaTableDataResult result;
@@ -78,19 +78,19 @@ Status SchemaStreamConsumptionScanner::_get_stream_consumption_block_from_fe() {
     }
     std::vector<TRow> result_data = result.data_batch;
 
-    _stream_consumption_block = Block::create_unique();
-    for (int i = 0; i < _s_stream_consumption_columns.size(); ++i) {
+    _table_stream_consumption_block = Block::create_unique();
+    for (int i = 0; i < _s_table_stream_consumption_columns.size(); ++i) {
         auto data_type = DataTypeFactory::instance().create_data_type(
-                _s_stream_consumption_columns[i].type, true);
-        _stream_consumption_block->insert(ColumnWithTypeAndName(
-                data_type->create_column(), data_type, _s_stream_consumption_columns[i].name));
+                _s_table_stream_consumption_columns[i].type, true);
+        _table_stream_consumption_block->insert(ColumnWithTypeAndName(
+                data_type->create_column(), data_type, _s_table_stream_consumption_columns[i].name));
     }
 
-    _stream_consumption_block->reserve(_block_rows_limit);
+    _table_stream_consumption_block->reserve(_block_rows_limit);
 
     if (result_data.size() > 0) {
         auto col_size = result_data[0].column_value.size();
-        if (col_size != _s_stream_consumption_columns.size()) {
+        if (col_size != _s_table_stream_consumption_columns.size()) {
             return Status::InternalError<false>(
                     "stream consumption schema is not match for FE and BE");
         }
@@ -98,16 +98,16 @@ Status SchemaStreamConsumptionScanner::_get_stream_consumption_block_from_fe() {
 
     for (int i = 0; i < result_data.size(); i++) {
         TRow row = result_data[i];
-        for (int j = 0; j < _s_stream_consumption_columns.size(); j++) {
+        for (int j = 0; j < _s_table_stream_consumption_columns.size(); j++) {
             RETURN_IF_ERROR(insert_block_column(row.column_value[j], j,
-                                                _stream_consumption_block.get(),
-                                                _s_stream_consumption_columns[j].type));
+                                                _table_stream_consumption_block.get(),
+                                                _s_table_stream_consumption_columns[j].type));
         }
     }
     return Status::OK();
 }
 
-Status SchemaStreamConsumptionScanner::get_next_block_internal(Block* block, bool* eos) {
+Status SchemaTableStreamConsumptionScanner::get_next_block_internal(Block* block, bool* eos) {
     if (!_is_init) {
         return Status::InternalError("Used before initialized.");
     }
@@ -116,9 +116,9 @@ Status SchemaStreamConsumptionScanner::get_next_block_internal(Block* block, boo
         return Status::InternalError("input pointer is nullptr.");
     }
 
-    if (_stream_consumption_block == nullptr) {
-        RETURN_IF_ERROR(_get_stream_consumption_block_from_fe());
-        _total_rows = (int)_stream_consumption_block->rows();
+    if (_table_stream_consumption_block == nullptr) {
+        RETURN_IF_ERROR(_get_table_stream_consumption_block_from_fe());
+        _total_rows = (int)_table_stream_consumption_block->rows();
     }
 
     if (_row_idx == _total_rows) {
@@ -128,7 +128,7 @@ Status SchemaStreamConsumptionScanner::get_next_block_internal(Block* block, boo
 
     int current_batch_rows = std::min(_block_rows_limit, _total_rows - _row_idx);
     MutableBlock mblock = MutableBlock::build_mutable_block(block);
-    RETURN_IF_ERROR(mblock.add_rows(_stream_consumption_block.get(), _row_idx, current_batch_rows));
+    RETURN_IF_ERROR(mblock.add_rows(_table_stream_consumption_block.get(), _row_idx, current_batch_rows));
     _row_idx += current_batch_rows;
 
     *eos = _row_idx == _total_rows;

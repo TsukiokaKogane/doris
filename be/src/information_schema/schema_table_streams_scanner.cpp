@@ -15,7 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
-#include "information_schema/schema_streams_scanner.h"
+#include "information_schema/schema_table_streams_scanner.h"
 
 #include <cstddef>
 
@@ -32,7 +32,7 @@
 
 namespace doris {
 
-std::vector<SchemaScanner::ColumnDesc> SchemaStreamsScanner::_s_streams_columns = {
+std::vector<SchemaScanner::ColumnDesc> SchemaTableStreamsScanner::_s_table_streams_columns = {
         {"DB_NAME", TYPE_VARCHAR, sizeof(StringRef), true},
         {"STREAM_NAME", TYPE_VARCHAR, sizeof(StringRef), true},
         {"STREAM_ID", TYPE_BIGINT, sizeof(int64_t), true},
@@ -48,23 +48,23 @@ std::vector<SchemaScanner::ColumnDesc> SchemaStreamsScanner::_s_streams_columns 
         {"STALE_REASON", TYPE_STRING, sizeof(StringRef), true},
 };
 
-SchemaStreamsScanner::SchemaStreamsScanner()
-        : SchemaScanner(_s_streams_columns, TSchemaTableType::SCH_STREAMS) {}
+SchemaTableStreamsScanner::SchemaTableStreamsScanner()
+        : SchemaScanner(_s_table_streams_columns, TSchemaTableType::SCH_TABLE_STREAMS) {}
 
-SchemaStreamsScanner::~SchemaStreamsScanner() = default;
+SchemaTableStreamsScanner::~SchemaTableStreamsScanner() = default;
 
-Status SchemaStreamsScanner::start(RuntimeState* state) {
+Status SchemaTableStreamsScanner::start(RuntimeState* state) {
     _block_rows_limit = state->batch_size();
     _rpc_timeout_ms = state->execution_timeout() * 1000;
     return Status::OK();
 }
 
-Status SchemaStreamsScanner::_get_streams_block_from_fe() {
+Status SchemaTableStreamsScanner::_get_table_streams_block_from_fe() {
     TNetworkAddress master_addr = ExecEnv::GetInstance()->cluster_info()->master_fe_addr;
 
     TSchemaTableRequestParams schema_table_request_params;
     TFetchSchemaTableDataRequest request;
-    request.__set_schema_table_name(TSchemaTableName::STREAMS);
+    request.__set_schema_table_name(TSchemaTableName::TABLE_STREAMS);
     request.__set_schema_table_params(schema_table_request_params);
 
     TFetchSchemaTableDataResult result;
@@ -83,34 +83,34 @@ Status SchemaStreamsScanner::_get_streams_block_from_fe() {
     }
     std::vector<TRow> result_data = result.data_batch;
 
-    _streams_block = Block::create_unique();
-    for (int i = 0; i < _s_streams_columns.size(); ++i) {
+    _table_streams_block = Block::create_unique();
+    for (int i = 0; i < _s_table_streams_columns.size(); ++i) {
         auto data_type =
-                DataTypeFactory::instance().create_data_type(_s_streams_columns[i].type, true);
-        _streams_block->insert(ColumnWithTypeAndName(data_type->create_column(), data_type,
-                                                     _s_streams_columns[i].name));
+                DataTypeFactory::instance().create_data_type(_s_table_streams_columns[i].type, true);
+        _table_streams_block->insert(ColumnWithTypeAndName(data_type->create_column(), data_type,
+                                                     _s_table_streams_columns[i].name));
     }
 
-    _streams_block->reserve(_block_rows_limit);
+    _table_streams_block->reserve(_block_rows_limit);
 
     if (result_data.size() > 0) {
         auto col_size = result_data[0].column_value.size();
-        if (col_size != _s_streams_columns.size()) {
+        if (col_size != _s_table_streams_columns.size()) {
             return Status::InternalError<false>("streams schema is not match for FE and BE");
         }
     }
 
     for (int i = 0; i < result_data.size(); i++) {
         TRow row = result_data[i];
-        for (int j = 0; j < _s_streams_columns.size(); j++) {
-            RETURN_IF_ERROR(insert_block_column(row.column_value[j], j, _streams_block.get(),
-                                                _s_streams_columns[j].type));
+        for (int j = 0; j < _s_table_streams_columns.size(); j++) {
+            RETURN_IF_ERROR(insert_block_column(row.column_value[j], j, _table_streams_block.get(),
+                                                _s_table_streams_columns[j].type));
         }
     }
     return Status::OK();
 }
 
-Status SchemaStreamsScanner::get_next_block_internal(Block* block, bool* eos) {
+Status SchemaTableStreamsScanner::get_next_block_internal(Block* block, bool* eos) {
     if (!_is_init) {
         return Status::InternalError("Used before initialized.");
     }
@@ -119,9 +119,9 @@ Status SchemaStreamsScanner::get_next_block_internal(Block* block, bool* eos) {
         return Status::InternalError("input pointer is nullptr.");
     }
 
-    if (_streams_block == nullptr) {
-        RETURN_IF_ERROR(_get_streams_block_from_fe());
-        _total_rows = (int)_streams_block->rows();
+    if (_table_streams_block == nullptr) {
+        RETURN_IF_ERROR(_get_table_streams_block_from_fe());
+        _total_rows = (int)_table_streams_block->rows();
     }
 
     if (_row_idx == _total_rows) {
@@ -131,7 +131,7 @@ Status SchemaStreamsScanner::get_next_block_internal(Block* block, bool* eos) {
 
     int current_batch_rows = std::min(_block_rows_limit, _total_rows - _row_idx);
     MutableBlock mblock = MutableBlock::build_mutable_block(block);
-    RETURN_IF_ERROR(mblock.add_rows(_streams_block.get(), _row_idx, current_batch_rows));
+    RETURN_IF_ERROR(mblock.add_rows(_table_streams_block.get(), _row_idx, current_batch_rows));
     _row_idx += current_batch_rows;
 
     *eos = _row_idx == _total_rows;

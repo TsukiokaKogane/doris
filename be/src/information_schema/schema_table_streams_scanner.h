@@ -28,24 +28,24 @@ namespace doris {
 class RuntimeState;
 class Block;
 
-class SchemaStreamsScanner : public SchemaScanner {
-    ENABLE_FACTORY_CREATOR(SchemaStreamsScanner);
+class SchemaTableStreamsScanner : public SchemaScanner {
+    ENABLE_FACTORY_CREATOR(SchemaTableStreamsScanner);
 
 public:
-    SchemaStreamsScanner();
-    ~SchemaStreamsScanner() override;
+    SchemaTableStreamsScanner();
+    ~SchemaTableStreamsScanner() override;
 
     Status start(RuntimeState* state) override;
     Status get_next_block_internal(Block* block, bool* eos) override;
 
 private:
-    Status _get_streams_block_from_fe();
+    Status _get_table_streams_block_from_fe();
     int _block_rows_limit = 4096;
     int _row_idx = 0;
     int _total_rows = 0;
-    std::unique_ptr<Block> _streams_block = nullptr;
+    std::unique_ptr<Block> _table_streams_block = nullptr;
     int _rpc_timeout_ms = 3000;
-    static std::vector<SchemaScanner::ColumnDesc> _s_streams_columns;
+    static std::vector<SchemaScanner::ColumnDesc> _s_table_streams_columns;
 };
 
 } // namespace doris

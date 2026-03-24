@@ -83,8 +83,9 @@ Status SchemaTableStreamConsumptionScanner::_get_table_stream_consumption_block_
     for (int i = 0; i < _s_table_stream_consumption_columns.size(); ++i) {
         auto data_type = DataTypeFactory::instance().create_data_type(
                 _s_table_stream_consumption_columns[i].type, true);
-        _table_stream_consumption_block->insert(ColumnWithTypeAndName(
-                data_type->create_column(), data_type, _s_table_stream_consumption_columns[i].name));
+        _table_stream_consumption_block->insert(
+                ColumnWithTypeAndName(data_type->create_column(), data_type,
+                                      _s_table_stream_consumption_columns[i].name));
     }
 
     _table_stream_consumption_block->reserve(_block_rows_limit);

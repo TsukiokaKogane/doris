@@ -147,7 +147,7 @@ public abstract class BaseTableStream extends Table {
         return supportedTableTypeList.contains(tableIf.getType());
     }
 
-    public void getProperties(StringBuilder sb) {
+    public void appendProperties(StringBuilder sb) {
         sb.append("\"").append(PropertyAnalyzer.PROPERTIES_STREAM_TYPE)
                 .append("\" = \"").append(streamConsumeType).append("\"");
         sb.append(",\n\"").append(PropertyAnalyzer.PROPERTIES_STREAM_SHOW_INITIAL_ROWS)

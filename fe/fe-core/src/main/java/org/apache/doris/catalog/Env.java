@@ -4469,7 +4469,7 @@ public class Env {
             addTableComment(table, sb);
             // properties=propertyClause?
             sb.append("\nPROPERTIES (\n");
-            stream.getProperties(sb);
+            stream.appendProperties(sb);
             sb.append(")");
             createTableStmt.add(sb + ";");
             return;

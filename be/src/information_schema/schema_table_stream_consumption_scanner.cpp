@@ -74,7 +74,7 @@ Status SchemaTableStreamConsumptionScanner::_get_table_stream_consumption_block_
 
     Status status(Status::create(result.status));
     if (!status.ok()) {
-        LOG(WARNING) << "fetch transactions from FE failed, errmsg=" << status;
+        LOG(WARNING) << "fetch stream consumption from FE failed, errmsg=" << status;
         return status;
     }
     std::vector<TRow> result_data = result.data_batch;

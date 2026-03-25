@@ -64,8 +64,8 @@ public class ShowCreateStreamCommand extends ShowCommand {
                 .getDbOrAnalysisException(tblNameInfo.getDb()).getTableOrAnalysisException(tblNameInfo.getTbl());
 
         if (!(tableIf instanceof BaseTableStream)) {
-            ErrorReport.reportAnalysisException(tblNameInfo.toFullyQualified()
-                    + " is not a stream, type:" + tableIf.getType());
+            ErrorReport.reportAnalysisException(ErrorCode.ERR_WRONG_OBJECT, tblNameInfo.getDb(), tblNameInfo.getTbl(),
+                    "STREAM", "Use 'SHOW CREATE TABLE '" + tblNameInfo.getTbl());
         }
 
         PrivPredicate wanted;

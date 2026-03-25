@@ -25,6 +25,7 @@ import org.apache.doris.catalog.TableIf;
 import org.apache.doris.common.io.Text;
 import org.apache.doris.common.io.Writable;
 import org.apache.doris.common.lock.MonitoredReentrantReadWriteLock;
+import org.apache.doris.persist.gson.GsonPostProcessable;
 import org.apache.doris.persist.gson.GsonUtils;
 import org.apache.doris.thrift.TCell;
 import org.apache.doris.thrift.TRow;
@@ -44,7 +45,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class TableStreamManager implements Writable {
+public class TableStreamManager implements Writable, GsonPostProcessable {
     private static final Logger LOG = LogManager.getLogger(TableStreamManager.class);
     @SerializedName(value = "dbStreamMap")
     private Map<Long, Set<Long>> dbStreamMap;
@@ -117,7 +118,10 @@ public class TableStreamManager implements Writable {
                         }
                         continue;
                     }
-                    Preconditions.checkArgument(table.get() instanceof BaseTableStream);
+                    if (!(table.get() instanceof BaseTableStream)) {
+                        LOG.warn("invalid not table stream type table: {}", table.get().getName());
+                        continue;
+                    }
                     BaseTableStream stream = (BaseTableStream) table.get();
                     if (stream.readLockIfExist()) {
                         try {
@@ -146,7 +150,6 @@ public class TableStreamManager implements Writable {
                                 trow.addToColumnValue(new TCell().setStringVal("N/A"));
                             } else {
                                 List<String> baseTableQualifiers = baseTable.getFullQualifiers();
-                                Preconditions.checkArgument(baseTableQualifiers.size() == 3);
                                 // BASE_TABLE_NAME
                                 trow.addToColumnValue(new TCell().setStringVal(baseTableQualifiers.get(2)));
                                 // BASE_TABLE_DB
@@ -205,5 +208,10 @@ public class TableStreamManager implements Writable {
                 }
             }
         }
+    }
+
+    @Override
+    public void gsonPostProcess() throws IOException {
+        this.rwLock = new MonitoredReentrantReadWriteLock(true);
     }
 }

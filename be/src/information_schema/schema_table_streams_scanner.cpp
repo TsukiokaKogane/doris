@@ -78,7 +78,7 @@ Status SchemaTableStreamsScanner::_get_table_streams_block_from_fe() {
 
     Status status(Status::create(result.status));
     if (!status.ok()) {
-        LOG(WARNING) << "fetch transactions from FE failed, errmsg=" << status;
+        LOG(WARNING) << "fetch table streams from FE failed, errmsg=" << status;
         return status;
     }
     std::vector<TRow> result_data = result.data_batch;
